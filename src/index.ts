@@ -4,6 +4,8 @@ dotenv.config();
 import { Telegraf } from "telegraf";
 import { existsSync, mkdirSync } from "fs";
 import { Model as ChatWithTools } from "./models/chatWithTools";
+import express, { Request, Response } from 'express';
+const app = express();
 
 const workDir = "./tmp";
 const telegramToken = process.env.TELEGRAM_TOKEN!;
@@ -60,4 +62,14 @@ bot.launch().then(() => {
 
 process.on("SIGTERM", () => {
   bot.stop();
+});
+
+
+app.get('/', (req: Request, res: Response) => {
+  res.send(`Hello, I'm alive!`);
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });
