@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "homepage": "https://dynobase.dev",
   "scripts": {
     "dev": "nodemon --watch 'src/**/*.ts' --exec 'ts-node' src/index.ts",
     "start": "ts-node src/index.ts"
@@ -12,15 +11,13 @@
     "node": "18"
   },
   "keywords": [],
-  "author": "Rafal Wilinski <rafal@dynobase.dev>",
+  "author": "Zohar Guy <zohar.guy@gmail.com",
   "license": "ISC",
   "dependencies": {
-    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "@types/node": "^18.15.11",
     "axios": "^1.3.5",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
-    "fluent-ffmpeg": "^2.1.2",
     "googlethis": "^1.7.1",
     "langchain": "latest",
     "openai": "^3.2.1",
@@ -33,7 +30,6 @@
   },
   "devDependencies": {
     "@types/express": "^4.17.17",
-    "@types/fluent-ffmpeg": "^2.1.21",
     "nodemon": "^2.0.22"
   }
 }
