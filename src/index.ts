@@ -18,11 +18,12 @@ if (!existsSync(workDir)) {
 }
 
 bot.start((ctx) => {
-  ctx.reply("Welcome to my Telegram bot!");
+  ctx.reply("Welcome, I am Roga, your personal mentor for a fulfilling and happy life!");
 });
 
 bot.help((ctx) => {
-  ctx.reply("Send me a message and I will echo it back to you.");
+  ctx.reply(`You can share with me your journey in life. I will be there for you and assit you along your path by 
+  lighting up the darker areas of your way`);
 });
 
 
