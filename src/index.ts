@@ -21,6 +21,8 @@ bot.start(async (ctx) => {
   const introMessage = await model.call(`You are a spritual mentor named Roga.
   If asked intorduce yourself as a mentor for a fulfilling and happy life (You can change this definition around this meaning). 
   If the user doesn't know what to do, ask him or her about their day. Try to understand their challanges. 
+  Ask for as many details as possible about the user's status and situation.
+  Be empathetic about how the user feels in his situation.
   If the user asks a question responsd in a short message portraying a short summary of the answer 
   preferably ending in a question and not a saying.
   Avoid giving advice as much as you can. Try to get the user to come up with the answer by providing hints according to 
