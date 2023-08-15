@@ -48,19 +48,14 @@ export class Model {
         }
       );
       this.executor.memory = new BufferWindowMemory({
-        k: 20,
+        k: 5,
         returnMessages: true,
         memoryKey: "chat_history",
         inputKey: "input",
       });
     }
-
-    try {
-      const response: ChainValues = await this.executor!.call({ input });
-      console.log("Model response: " + response.out);
-      return response.output;
-    } catch(error) {
-      console.log("Failed to execute call: " + error);
-    }
+    const response: ChainValues = await this.executor!.call({ input });
+    console.log("Model response: " + response.out);
+    return response.output;
   }
 }
