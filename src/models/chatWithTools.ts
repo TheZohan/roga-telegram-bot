@@ -1,11 +1,12 @@
-import { AgentExecutor, Tool, initializeAgentExecutor } from "langchain/agents";
-import { ChatOpenAI } from "langchain/chat_models";
-import { BufferMemory } from "langchain/memory";
+import { AgentExecutor, initializeAgentExecutorWithOptions } from "langchain/agents";
+import { ChatOpenAI } from "langchain/chat_models/openai";
+import { BufferWindowMemory } from "langchain/memory";
 import { Configuration } from "openai";
 import { OpenAIApi } from "openai";
 import { googleTool } from "./tools/google";
 import { PromptTemplate } from "langchain/prompts";
 import { ChainValues } from "langchain/dist/schema";
+import { Tool } from "langchain/tools";
 
 const openAIApiKey = process.env.OPENAI_API_KEY!;
 
@@ -38,13 +39,16 @@ export class Model {
 
   public async call(input: string) {
     if (!this.executor) {
-      this.executor = await initializeAgentExecutor(
+      this.executor = await initializeAgentExecutorWithOptions(
         this.tools,
         this.model,
-        "chat-conversational-react-description",
-        true
+        {
+          agentType: "chat-conversational-react-description",
+          verbose: true,
+        }
       );
-      this.executor.memory = new BufferMemory({
+      this.executor.memory = new BufferWindowMemory({
+        k: 20,
         returnMessages: true,
         memoryKey: "chat_history",
         inputKey: "input",
@@ -56,7 +60,7 @@ export class Model {
       console.log("Model response: " + response.out);
       return response.output;
     } catch(error) {
-      console.log(error);
+      console.log("Failed to execute call: " + error);
     }
   }
 }
