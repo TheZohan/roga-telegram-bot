@@ -1,10 +1,12 @@
-import { AgentExecutor, Tool, initializeAgentExecutor } from "langchain/agents";
-import { ChatOpenAI } from "langchain/chat_models";
-import { BufferMemory } from "langchain/memory";
+import { AgentExecutor, initializeAgentExecutorWithOptions } from "langchain/agents";
+import { ChatOpenAI } from "langchain/chat_models/openai";
+import { BufferWindowMemory } from "langchain/memory";
 import { Configuration } from "openai";
 import { OpenAIApi } from "openai";
 import { googleTool } from "./tools/google";
 import { PromptTemplate } from "langchain/prompts";
+import { ChainValues } from "langchain/dist/schema";
+import { Tool } from "langchain/tools";
 
 const openAIApiKey = process.env.OPENAI_API_KEY!;
 
@@ -37,38 +39,28 @@ export class Model {
 
   public async call(input: string) {
     if (!this.executor) {
-      this.executor = await initializeAgentExecutor(
+      this.executor = await initializeAgentExecutorWithOptions(
         this.tools,
         this.model,
-        "chat-conversational-react-description",
-        true
+        {
+          agentType: "chat-conversational-react-description",
+          verbose: true,
+        }
       );
-      this.executor.memory = new BufferMemory({
+      this.executor.memory = new BufferWindowMemory({
+        k: 20,
         returnMessages: true,
         memoryKey: "chat_history",
         inputKey: "input",
       });
     }
 
-    const prompt = PromptTemplate.fromTemplate(`You are a spritual mentor named Roga.
-    If asked intorduce yourself as a mentor for a fulfilling and happy life (You can change this definition around this meaning). 
-    If the user doesn't know what to do, ask him or her about their day. Try to understand their challanges. 
-    If the user asks a question responsd in a short message portraying a short summary of the answer 
-    preferably ending in a question and not a saying.
-    Avoid giving advice as much as you can. Try to get the user to come up with the answer by providing hints according to 
-    his or her experience.
-    This is the user's message:
-     {message}?`);
-
-    const formattedPrompt = await prompt.format({
-      message: input
-    });
-
-    const response = await this.executor!.call({ input: formattedPrompt });
-    //const response = await this.executor!.call({ input });
-
-    console.log("Model response: " + response);
-
-    return response.output;
+    try {
+      const response: ChainValues = await this.executor!.call({ input });
+      console.log("Model response: " + response.out);
+      return response.output;
+    } catch(error) {
+      console.log("Failed to execute call: " + error);
+    }
   }
 }
