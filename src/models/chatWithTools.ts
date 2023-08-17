@@ -43,7 +43,7 @@ export class Model {
         this.tools,
         this.model,
         {
-          agentType: "chat-conversational-react-description",
+          agentType: "zero-shot-react-description",
           verbose: true,
         }
       );
