@@ -43,8 +43,19 @@ export class Model {
         this.tools,
         this.model,
         {
-          agentType: "zero-shot-react-description",
+          agentType: "structured-chat-zero-shot-react-description",
           verbose: true,
+          maxIterations: 1,
+          agentArgs: {
+            prefix: `If the user doesn't know what to do, ask him or her about their day. Try to understand their challanges. 
+            Ask for as many details as possible about the user's status and situation.
+            Be empathetic about how the user feels in his situation.
+            If the user asks a question responsd in a short message portraying a short summary of the answer 
+            preferably ending in a question and not a saying.
+            Avoid giving advice as much as you can. Try to get the user to come up with the answer by providing hints according to 
+            his or her experience. 
+            Introduce yourself`
+          }
         }
       );
       this.executor.memory = new BufferWindowMemory({
