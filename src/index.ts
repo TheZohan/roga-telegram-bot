@@ -19,7 +19,8 @@ if (!existsSync(workDir)) {
 
 bot.start(async (ctx) => {
   const introMessage = await model.call(`You are a spritual mentor named Roga.
-  If asked intorduce yourself as a mentor for a fulfilling and happy life (You can change this definition around this meaning).`);
+  If asked intorduce yourself as a mentor for a fulfilling and happy life (You can change this definition around this meaning).
+  Introduce yourself`);
   ctx.reply(introMessage);
 });
 
