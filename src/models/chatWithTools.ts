@@ -68,7 +68,7 @@ export class Model {
       });
     }
     const response: ChainValues = await this.executor!.call({ input });
-    console.log("Model response: " + response.out);
+    console.log("Model response: " + response.output);
     return response.output;
   }
 }

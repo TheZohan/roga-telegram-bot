@@ -5,22 +5,22 @@ import { Telegraf } from "telegraf";
 import { existsSync, mkdirSync } from "fs";
 import { Model as ChatWithTools } from "./models/chatWithTools";
 import express, { Request, Response } from 'express';
+import { Model } from "./models/chat";
 const app = express();
 
 const workDir = "./tmp";
 const telegramToken = process.env.TELEGRAM_TOKEN!;
 
 const bot = new Telegraf(telegramToken);
-let model = new ChatWithTools();
+// let model = new ChatWithTools();
+let model = new Model();
 
 if (!existsSync(workDir)) {
   mkdirSync(workDir);
 }
 
 bot.start(async (ctx) => {
-  const introMessage = await model.call(`You are a spritual mentor named Roga.
-  If asked intorduce yourself as a mentor for a fulfilling and happy life (You can change this definition around this meaning).
-  Introduce yourself`);
+  const introMessage = await model.call(`Hi`);
   ctx.reply(introMessage);
 });
 
