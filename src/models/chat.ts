@@ -1,4 +1,4 @@
-import { Tool } from "langchain/agents";
+
 import { ChatOpenAI } from "langchain/chat_models";
 import {
   ChatPromptTemplate,
@@ -10,6 +10,8 @@ import { BufferMemory } from "langchain/memory";
 import { ConversationChain } from "langchain/chains";
 import { Configuration } from "openai";
 import { OpenAIApi } from "openai";
+import { Tool } from "langchain/tools";
+import { ChainValues } from "langchain/dist/schema";
 
 const openAIApiKey = process.env.OPENAI_API_KEY!;
 
@@ -38,7 +40,14 @@ export class Model {
 
     const chatPrompt = ChatPromptTemplate.fromPromptMessages([
       SystemMessagePromptTemplate.fromTemplate(
-        "The following is a friendly conversation between a human and an AI. The AI is talkative and provides lots of specific details from its context. If the AI does not know the answer to a question, it truthfully says it does not know."
+        `You are a spritual mentor named Roga.
+        If the user doesn't know what to do, ask him or her about their day. Try to understand their challanges. 
+        Ask for as many details as possible about the user's status and situation.
+        Be empathetic about how the user feels in his situation.
+        If the user asks a question responsd in a short message portraying a short summary of the answer 
+        preferably ending in a question and not a saying.
+        Avoid giving advice as much as you can. Try to get the user to come up with the answer by providing hints according to 
+        his or her experience. `
       ),
       new MessagesPlaceholder("history"),
       HumanMessagePromptTemplate.fromTemplate("{input}"),
@@ -52,7 +61,8 @@ export class Model {
   }
 
   public async call(input: string) {
-    const output = await this.chain.call({ input });
-    return output.output;
+    const response: ChainValues = await this.chain.call({ input });
+    console.log("Output: " + response.response);
+    return response.response;
   }
 }
