@@ -26,29 +26,27 @@ const params = {
   maxRetries: 5,
 };
 
-export class Model {
+export class UserAnalyzer {
   public tools: Tool[] = [];
   public chain: ConversationChain;
   public openai: OpenAIApi;
+  private userProfile: UserProfile;
 
-  constructor() {
+  constructor(userProfile: UserProfile) {
+    
     const configuration = new Configuration({
       apiKey: openAIApiKey,
     });
 
     this.openai = new OpenAIApi(configuration);
     const model = new ChatOpenAI(params, configuration);
+    this.userProfile = userProfile;
 
     const chatPrompt = ChatPromptTemplate.fromPromptMessages([
       SystemMessagePromptTemplate.fromTemplate(
-        `You are a spritual mentor named Roga.
-        If the user doesn't know what to do, ask him or her about their day. Try to understand their challanges. 
-        Ask for as many details as possible about the user's status and situation.
-        Be empathetic about how the user feels in his situation.
-        If the user asks a question responsd in a short message portraying a short summary of the answer 
-        preferably ending in a question and not a saying.
-        Avoid giving advice as much as you can. Try to get the user to come up with the answer by providing hints according to 
-        his or her experience. `
+        `Extract any characteristics and information about the user from the input
+        and add it to the userProfile JSON object.
+        Return only the JSON as response.`
       ),
       new MessagesPlaceholder("history"),
       HumanMessagePromptTemplate.fromTemplate("{input}"),
@@ -58,12 +56,13 @@ export class Model {
       memory: new BufferMemory({ returnMessages: true }),
       prompt: chatPrompt,
       llm: model,
+      verbose: true
     });
   }
 
-  public async call(userProfile: UserProfile, input: string) {
-    const response: ChainValues = await this.chain.call({ input: {userInput: input, userProfile: userProfile }});
-    console.log("Output: " + response.response);
-    return response.response;
+  public async analyze(input: string) {
+    const updatedUserProfile: ChainValues = await this.chain.call({input: {userInput: input, userProfile: this.userProfile}});
+    this.userProfile = updatedUserProfile.response;
+    return this.userProfile;
   }
 }
