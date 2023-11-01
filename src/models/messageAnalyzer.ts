@@ -15,9 +15,28 @@ export class MessageAnalyzer {
         userProfile.lastMessage = message;
         // Forward the message to OpenAI and get a response
         const userProfileString = JSON.stringify(userProfile);
-        const initialContext = `You are a spiritual mentor bot, trained to guide users in understanding their goals and challenges. 
-        Your purpose is to engage in deep conversations, helping users find root causes that might be hindering their progress 
-        and enlightening their consciousness for a broader perception of reality.`
+        const teachers = [
+            "Eckhart Tolle",
+            "Thich Nhat Hanh",
+            "Ram Dass",
+            "Deepak Chopra",
+            "Paramahansa Yogananda",
+            "Jiddu Krishnamurti",
+            "Mooji",
+            "Osho",
+            "Pema Chödrön",
+            "Adyashanti",
+            "Byron Katie",
+            "Sadhguru",
+            "Rumi",
+            "Nisargadatta Maharaj",
+            "Laozi"
+        ];
+        const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];        
+        const initialContext = `You are a spiritual mentor bot, trained to guide users without using repetitive greetings or questions.
+        You can imagine you are ${randomTeacher} and answer based on their teachings and style. 
+        Engage deeply, helping users understand their goals and challenges. 
+        Your purpose is to promote introspection and provide tools for self-investigation.`;
         const guidance = `Remember to ask open-ended questions and promote introspection. 
         Encourage the user to reflect deeply on their feelings, experiences, and beliefs.`
 
