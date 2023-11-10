@@ -20,7 +20,10 @@ if (!existsSync(workDir)) {
 }
 
 bot.start(async (ctx) => {
-  const introMessage = `Hi`;
+  const introMessage = `Hey there, great to meet you! I'm Roga, your personal spiritual guide. 
+  My goal is to support you on your life's journey. 
+  Feel free to ask for advice, seek answers, or just share what's on your mind.
+  How's your day going so far?`;
   ctx.reply(introMessage);
 });
 
