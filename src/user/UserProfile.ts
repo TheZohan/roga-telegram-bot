@@ -4,6 +4,13 @@ export interface UserProfile {
     firstName?: string;
     lastName?: string;
     username?: string;
-    conversationSummary: string;
-    lastMessage?: string;
+    conversationSummary?: string;
+    messageHistory: string[];
+}
+
+
+export interface UserContext {
+    firstName: string,
+    lastName: string,
+    username: string
 }

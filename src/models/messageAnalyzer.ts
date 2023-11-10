@@ -1,18 +1,51 @@
 import { json } from "stream/consumers";
-import { getOpenAIResponse, getOpenAIResponse1 } from "../providers/OpenAIClient";
-import { UserProfile } from "../user/UserProfile";
+import { getOpenAISystemMessageResponse, getOpenAIResponse } from "../providers/OpenAIClient";
+import { UserContext, UserProfile } from "../user/UserProfile";
+import UsersStore from "../user/UsersStore";
+
+const MESSAGES_HISTORY_LENGTH = 20;
 
 export class MessageAnalyzer {
-    constructor() {}
+    usersStore: UsersStore;
+
+    constructor() {
+        this.usersStore = new UsersStore();
+    }
+
+    handleMessage = async(userId: number, userMessage: string, ctx: UserContext) : Promise<string> => {
+        let userProfile = this.usersStore.get(userId);
+        this.updateMessageHistory(userProfile, `User: ${userMessage}`);
+        userProfile = {
+        ...userProfile,
+        firstName: ctx.firstName,
+        lastName: ctx.lastName,
+        username: ctx.username
+        };
+        console.log("UserProfile 1: ", userProfile);
+        const botReply = await this.analyzeMessage(userProfile, userMessage);
+        this.updateMessageHistory(userProfile, `Bot: ${botReply}`);
+        userProfile.conversationSummary = await this.enhanceSummary(userProfile, userMessage, botReply);
+        console.log("UserProfile 2: ", userProfile);
+        this.usersStore.update(userProfile);
+        return botReply;
+    }
 
     enhanceSummary = async (profile: UserProfile, userMessage: string, botResponse: string): Promise<string> => {
         const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`;
     const systemMessage = `Summarize the following text: "${combinedText}"`;
-    return await getOpenAIResponse1(systemMessage, "system");
+    return await getOpenAIResponse(systemMessage, "system");
+    }
+
+    updateMessageHistory = (profile: UserProfile, newMessage: string): void => {
+        profile.messageHistory.push(newMessage);
+    
+        // Keep only the last 10 messages
+        if (profile.messageHistory.length > MESSAGES_HISTORY_LENGTH) {
+            profile.messageHistory.shift();
+        }
     }
 
     analyzeMessage = async (userProfile: UserProfile, message: string): Promise<string> => {
-        userProfile.lastMessage = message;
         // Forward the message to OpenAI and get a response
         const userProfileString = JSON.stringify(userProfile);
         const teachers = [
@@ -38,12 +71,14 @@ export class MessageAnalyzer {
         Engage deeply, helping users understand their goals and challenges. 
         Your purpose is to promote introspection and provide tools for self-investigation.`;
         const guidance = `Remember to ask open-ended questions and promote introspection. 
-        Encourage the user to reflect deeply on their feelings, experiences, and beliefs.`
+        Encourage the user to reflect deeply on their feelings, experiences, and beliefs.
+        If there are no details about the user's name (or how he would like to be called), age, gender, location, family status or any detail that might be relevant to 
+        the process ask the user for these details.`
 
         const systemMessage = `${initialContext}
         ${guidance}
         The user profile is: ${userProfileString}.`;
-        return await getOpenAIResponse(systemMessage, message);
+        return await getOpenAISystemMessageResponse(systemMessage, message);
         
     }
 }
