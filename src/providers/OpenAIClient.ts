@@ -7,7 +7,7 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY!
   });
 
-export async function getOpenAIResponse(systemMessage: string, userMessage: string): Promise<string> {
+export async function getOpenAISystemMessageResponse(systemMessage: string, userMessage: string): Promise<string> {
     const messages: ChatCompletionMessageParam[] = [
         { role: "system", content: systemMessage },
         { role: "user", content: userMessage }
@@ -29,7 +29,7 @@ export async function getOpenAIResponse(systemMessage: string, userMessage: stri
     }
 }
 
-export async function getOpenAIResponse1(content: string, role: 'system' | 'user'): Promise<string> {
+export async function getOpenAIResponse(content: string, role: 'system' | 'user'): Promise<string> {
     const messages: ChatCompletionMessageParam[] = [
         { role, content},
     ];

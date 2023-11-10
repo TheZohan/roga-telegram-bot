@@ -1,18 +1,18 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { Telegraf } from "telegraf";
+import { NarrowedContext, Context, Telegraf } from "telegraf";
 import { existsSync, mkdirSync } from "fs";
 import express, { Request, Response } from 'express';
-import UsersStore from "./user/UsersStore";
 import { MessageAnalyzer } from "./models/messageAnalyzer";
+import { Message, Update } from "telegraf/typings/core/types/typegram";
+import { UserContext } from "./user/UserProfile";
 const app = express();
 
 const workDir = "./tmp";
 const telegramToken = process.env.TELEGRAM_TOKEN!;
 
 const bot = new Telegraf(telegramToken);
-const usersStore = new UsersStore();
 const messageAnalyzer = new MessageAnalyzer();
 
 if (!existsSync(workDir)) {
@@ -30,7 +30,7 @@ bot.help((ctx) => {
 });
 
 
-bot.on("message", async (ctx) => {
+bot.on("message", async (ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message>>) => {
   const userMessage = (ctx.message as any).text;
 
   if (!userMessage) {
@@ -47,27 +47,17 @@ bot.on("message", async (ctx) => {
     if (!userId) {
       console.log("userId is null");
       return;
-    }  
+    }
 
-    let userProfile = usersStore.get(userId);
-    const user = ctx.from;
-
-    userProfile = {
-      ...userProfile,
-      firstName: user.first_name,
-      lastName: user.last_name,
-      username: user.username,
-      lastMessage: userMessage
-    };
-    console.log("UserProfile 1: ", userProfile);
-    const botReply = await messageAnalyzer.analyzeMessage(userProfile, userMessage);
-    userProfile.conversationSummary = await messageAnalyzer.enhanceSummary(userProfile, userMessage, botReply);
-    console.log("UserProfile 2: ", userProfile);
-    usersStore.update(userProfile);
+    const userContext: UserContext = {
+      firstName: ctx.from.first_name,
+      lastName: ctx.from.last_name || "",
+      username: ctx.from.username || ""
+    }
+    const botReply = await messageAnalyzer.handleMessage(userId, userMessage, userContext);
     await ctx.reply(botReply);
   } catch (error) {
     console.log(error);
-
     const message = JSON.stringify(
       (error as any)?.response?.data?.error ?? "Unable to extract error"
     );
