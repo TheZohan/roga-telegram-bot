@@ -1,7 +1,6 @@
 import OpenAI from 'openai';
-import { UserProfile } from '../user/UserProfile';
 import { ChatCompletionMessageParam } from 'openai/resources';
-import { sys } from 'typescript';
+import { requestForPersonalDetailsTool } from '../models/tools/request_for_personal_details';
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY!
@@ -34,15 +33,16 @@ export async function getOpenAIResponse(content: string, role: 'system' | 'user'
         { role, content},
     ];
     const completionRequest: OpenAI.Chat.ChatCompletionCreateParams = {
-        model: process.env.OPENAI_MODEL || "gpt-4.0-turbo",
+        model: process.env.OPENAI_MODEL || "gpt-4.0",
         messages,
+        functions: [requestForPersonalDetailsTool],
         max_tokens: 150, // Limit the response length
     };
 
     try {
         const chatCompletion = await openai.chat.completions.create(completionRequest);
         const responseChoices = chatCompletion.choices;
-        console.log("responseChoices:", responseChoices);
+        console.log("OpenAI Response: ", responseChoices);
         return responseChoices[0].message.content?.toString() || "I don't know what to say...";
     } catch (error) {
         console.error('Error calling OpenAI:', error);
