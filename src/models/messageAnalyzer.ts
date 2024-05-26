@@ -2,7 +2,6 @@ import { json } from "stream/consumers";
 import { getOpenAISystemMessageResponse, getOpenAIResponse } from "../providers/OpenAIClient";
 import { UserContext, UserProfile, PersonalDetails } from "../user/UserProfile";
 import UsersStore from "../user/UsersStore";
-import { BotAction } from "./tools";
 
 const MESSAGES_HISTORY_LENGTH = 20;
 

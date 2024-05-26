@@ -1,6 +1,5 @@
 import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources';
-import { requestForPersonalDetailsTool } from '../models/tools/request_for_personal_details';
 
 const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY!
@@ -35,7 +34,6 @@ export async function getOpenAIResponse(content: string, role: 'system' | 'user'
     const completionRequest: OpenAI.Chat.ChatCompletionCreateParams = {
         model: process.env.OPENAI_MODEL || "gpt-4.0",
         messages,
-        functions: [requestForPersonalDetailsTool],
         max_tokens: 150, // Limit the response length
     };
 
