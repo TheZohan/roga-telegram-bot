@@ -100,7 +100,8 @@ export class MessageAnalyzer {
         const guidance = `Remember to ask open-ended questions and promote introspection. 
         Encourage the user to reflect deeply on their feelings, experiences, and beliefs.
         If there are no details about the user's name (or how he would like to be called), age, gender, location, family status or any detail that might be relevant to 
-        the process ask the user for these details.`
+        the process ask the user for these details.
+        Please limit the conversation to topics related to spiritual practices, mindfulness, meditation, daily reflections, spiritual teachings, personal growth, and community engagement. Avoid discussing technical details, coding, or unrelated topics. Focus on providing guidance, inspiration, and support within these areas.`
 
         const systemMessage = `${initialContext}
         ${guidance}
