@@ -1,5 +1,5 @@
-import { json } from "stream/consumers";
-import { getOpenAISystemMessageResponse, getOpenAIResponse } from "../providers/OpenAIClient";
+import { OpenAIClient } from "../providers/OpenAIClient";
+import { LLMProvider } from "../providers/LlmProvider";
 import { UserContext, UserProfile, PersonalDetails } from "../user/UserProfile";
 import UsersStore from "../user/UsersStore";
 
@@ -7,9 +7,11 @@ const MESSAGES_HISTORY_LENGTH = 20;
 
 export class MessageAnalyzer {
     usersStore: UsersStore;
+    openAIClient: LLMProvider;
 
     constructor() {
         this.usersStore = new UsersStore();
+        this.openAIClient = new OpenAIClient();
     }
 
     handleMessage = async(userId: number, userMessage: string, ctx: UserContext) : Promise<string> => {
@@ -39,7 +41,7 @@ export class MessageAnalyzer {
     enhanceSummary = async (profile: UserProfile, userMessage: string, botResponse: string): Promise<string> => {
         const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`;
         const systemMessage = `Summarize the following text: "${combinedText}"`;
-        return await getOpenAIResponse(systemMessage, "system");
+        return await this.openAIClient.sendMessage(systemMessage, "");
     }
 
     updateMessageHistory = (profile: UserProfile, newMessage: string): void => {
@@ -67,7 +69,7 @@ export class MessageAnalyzer {
             `Additional details:
             UserProfile: "${userProfileString}". 
             Last User message: "${userMessage}"`;
-        const response: string = await getOpenAIResponse(systemMessage, "system");
+        const response: string = await this.openAIClient.sendMessage(systemMessage, "");
         //const action: BotAction = JSON.parse(response) as BotAction;
         return response;
     }
@@ -106,7 +108,7 @@ export class MessageAnalyzer {
         const systemMessage = `${initialContext}
         ${guidance}
         The user profile is: ${userProfileString}.`;
-        return await getOpenAISystemMessageResponse(systemMessage, message);
+        return await this.openAIClient.sendMessage(systemMessage, message);
         
     }
 
