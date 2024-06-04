@@ -26,52 +26,100 @@ export class MessageAnalyzer {
             personalDetails: personalDetails,
             username: ctx.username
         };
-        console.log("UserProfile 1: ", userProfile);
-        const action: string = await this.decideOnNextAction(userProfile, userMessage);
-        console.log("Action: ", action);
-        const botReply = await this.executeBotAction("respondToUser", userProfile, userMessage);
-        //const botReply = await this.respondToUser(userProfile, userMessage);
+        
+        // Stage 1: Check if message is in the context of spiritual journey or personal growth.
+        const isMessageInContext = await this.isMessageInChatContext(userMessage);
+        if (!isMessageInContext) {
+            return "Thank you for sharing! While that is interesting, I'd love to assist you with topics related to spirituality or personal growth. How can I help you on your spiritual journey today?";
+        }
+        // Stage 2: Decide whether more information about the user is required
+        const shouldRequestForPersonalDetails = await this.shouldRequestForMoreDetails(userProfile)
+        let botReply = "";
+        if (shouldRequestForPersonalDetails) {
+            botReply = await this.askTheUser(userProfile, userMessage);
+        } else {
+            botReply = await this.respondToUser(userProfile, userMessage);
+        }
         this.updateMessageHistory(userProfile, `Bot: ${botReply}`);
-        userProfile.conversationSummary = await this.enhanceSummary(userProfile, userMessage, botReply);
-        console.log("UserProfile 2: ", userProfile);
-        this.usersStore.update(userProfile);
+        this.enhanceSummary(userProfile, userMessage, botReply);
         return botReply;
     }
 
-    enhanceSummary = async (profile: UserProfile, userMessage: string, botResponse: string): Promise<string> => {
-        const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`;
-        const systemMessage = `Summarize the following text: "${combinedText}"`;
-        return await this.openAIClient.sendMessage(systemMessage, "");
-    }
+    isMessageInChatContext = async (userMessage: string) : Promise<Boolean> => {
+        const systemMessage = `Check if the user message is relevant to the conversation and reply with yes/no.
+        1. Relevant: The user is sharing their current mood, feelings, condition, life experience, or anything about themselves or their life.
+        2. Irrelevant: The user is asking about coding, math problems, or other technical topics not related to personal sharing.`;
+        const botResponse: string = await this.openAIClient.sendMessage(systemMessage, userMessage);
 
-    updateMessageHistory = (profile: UserProfile, newMessage: string): void => {
-        profile.messageHistory.push(newMessage);
-    
-        // Keep only the last 10 messages
-        if (profile.messageHistory.length > MESSAGES_HISTORY_LENGTH) {
-            profile.messageHistory.shift();
+        const yesRegex = /\byes\b/i; // \b ensures word boundaries, i makes it case-insensitive
+        const noRegex = /\bno\b/i;   // \b ensures word boundaries, i makes it case-insensitive
+        let response = true;
+        if (yesRegex.test(botResponse)) {
+            response = true;
+        } else if (noRegex.test(botResponse)) {
+            response = false;
+        } else {
+            console.log("The bot did not return yes or no!");
         }
+
+        console.log("isMessageInChatContext:", response);
+        return response;
     }
 
-    decideOnNextAction = async(userProfile: UserProfile, userMessage: string): Promise<string> => {
+    
+    shouldRequestForMoreDetails = async(userProfile: UserProfile): Promise<boolean> => {
         const userProfileString = JSON.stringify(userProfile);
-        const systemMessage = 
-        // `Please assist in choosing the next action for the bot. The choice will execute the next action, 
-        //     you don't need to execute it yourself. 
-        //     Available actions are: 
-        //     - requestForPersonalDetails: Ask the user for their personal details. 
-        //         Choose this action if the user profile is missing details: age, gender, marital status or any 
-        //         other detail that can assist in the conversation.
-        //     - savePersonalDetails: Save the personal details the user provided. 
-        //         Choose this action if the user provided any personal details about themselves. 
-        //         function input is the type of user personal detail and the data itself.
-        //     - respondToUser: Respond directly to the user's query (not need for the actual response).
-            `Additional details:
-            UserProfile: "${userProfileString}". 
-            Last User message: "${userMessage}"`;
-        const response: string = await this.openAIClient.sendMessage(systemMessage, "");
-        //const action: BotAction = JSON.parse(response) as BotAction;
+        const systemMessage = `Check if the user profile has enough information about the user. reply with yes/no.
+        Does the user profile contain the following information? שge, location, personal goal or issues he wants to solve
+        UserProfile: ${userProfileString}`;
+        const botResponse: string = await this.openAIClient.sendMessage(systemMessage, "");
+
+        const yesRegex = /\byes\b/i; // \b ensures word boundaries, i makes it case-insensitive
+        const noRegex = /\bno\b/i;   // \b ensures word boundaries, i makes it case-insensitive
+        let response = true;
+        if (yesRegex.test(botResponse)) {
+            response = true;
+        } else if (noRegex.test(botResponse)) {
+            response = false;
+        } else {
+            console.log("The bot did not return yes or no!");
+        }
+
+        console.log("isMessageInChatContext:", response);
         return response;
+    }
+
+    askTheUser = async (userProfile: UserProfile, message: string): Promise<string> => {
+        // Forward the message to OpenAI and get a response
+        const userProfileString = JSON.stringify(userProfile);
+        const teachers = [
+            "Eckhart Tolle",
+            "Thich Nhat Hanh",
+            "Ram Dass",
+            "Deepak Chopra",
+            "Paramahansa Yogananda",
+            "Jiddu Krishnamurti",
+            "Mooji",
+            "Osho",
+            "Pema Chödrön",
+            "Adyashanti",
+            "Byron Katie",
+            "Sadhguru",
+            "Rumi",
+            "Nisargadatta Maharaj",
+            "Laozi"
+        ];
+        const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];        
+        const initialContext = `You are a spiritual mentor bot, trained to guide users without using repetitive greetings or questions.
+        You can imagine you are ${randomTeacher} and answer based on their teachings and style. 
+        Engage deeply, helping users understand their goals and challenges. 
+        Your purpose is to promote introspection and provide tools for self-investigation.`;
+        const guidance = `Ask a question that will assist in filling the user profile or promote introspection.`;
+
+        const systemMessage = `${initialContext}
+        ${guidance}
+        The user profile is: ${userProfileString}.`;
+        return await this.openAIClient.sendMessage(systemMessage, message);
     }
 
     respondToUser = async (userProfile: UserProfile, message: string): Promise<string> => {
@@ -101,15 +149,28 @@ export class MessageAnalyzer {
         Your purpose is to promote introspection and provide tools for self-investigation.`;
         const guidance = `Remember to ask open-ended questions and promote introspection. 
         Encourage the user to reflect deeply on their feelings, experiences, and beliefs.
-        If there are no details about the user's name (or how he would like to be called), age, gender, location, family status or any detail that might be relevant to 
-        the process ask the user for these details.
-        Please limit the conversation to topics related to spiritual practices, mindfulness, meditation, daily reflections, spiritual teachings, personal growth, and community engagement. Avoid discussing technical details, coding, or unrelated topics. Focus on providing guidance, inspiration, and support within these areas.`
+        Limit the answer to 800 characters. Don't sign your name at the end`
 
         const systemMessage = `${initialContext}
         ${guidance}
         The user profile is: ${userProfileString}.`;
         return await this.openAIClient.sendMessage(systemMessage, message);
-        
+    }
+
+    enhanceSummary = async (profile: UserProfile, userMessage: string, botResponse: string) => {
+        const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`;
+        const systemMessage = `Summarize the following text: "${combinedText}"`;
+        profile.conversationSummary = await this.openAIClient.sendMessage(systemMessage, "");
+        this.usersStore.update(profile);
+    }
+
+    updateMessageHistory = (profile: UserProfile, newMessage: string): void => {
+        profile.messageHistory.push(newMessage);
+    
+        // Keep only the last 10 messages
+        if (profile.messageHistory.length > MESSAGES_HISTORY_LENGTH) {
+            profile.messageHistory.shift();
+        }
     }
 
     executeBotAction = async (action: string, userProfile: UserProfile, userMessage: string): Promise<string> => {
