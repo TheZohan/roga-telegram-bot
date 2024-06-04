@@ -57,6 +57,7 @@ bot.on("message", async (ctx: NarrowedContext<Context<Update>, Update.MessageUpd
       lastName: ctx.from.last_name || "",
       username: ctx.from.username || ""
     }
+
     const botReply = await messageAnalyzer.handleMessage(userId, userMessage, userContext);
     await ctx.reply(botReply);
   } catch (error) {
