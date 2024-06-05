@@ -1,35 +1,63 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { NarrowedContext, Context, Telegraf } from "telegraf";
+import { NarrowedContext, Context, Markup, Telegraf } from "telegraf";
 import { existsSync, mkdirSync } from "fs";
 import express, { Request, Response } from 'express';
-import { MessageAnalyzer } from "./models/messageAnalyzer";
 import { Message, Update } from "telegraf/typings/core/types/typegram";
-import { UserContext } from "./user/UserProfile";
+import { UserContext, UserProfile } from "./user/UserProfile";
+import { MessageAnalyzer } from "./models/messageAnalyzer";
+import i18n from './il18n';
+import UsersStore from "./user/UsersStore";
+
 const app = express();
 
 const workDir = "./tmp";
 const telegramToken = process.env.TELEGRAM_TOKEN!;
 
 const bot = new Telegraf(telegramToken);
-const messageAnalyzer = new MessageAnalyzer();
+const usersStore = new UsersStore();
+const messageAnalyzer = new MessageAnalyzer(usersStore);
 
 if (!existsSync(workDir)) {
   mkdirSync(workDir);
 }
 
 bot.start(async (ctx) => {
-  const introMessage = `Hey there, great to meet you! I'm Roga, your personal spiritual guide. 
-  My goal is to support you on your life's journey. 
-  Feel free to ask for advice, seek answers, or just share what's on your mind.
-  How's your day going so far?`;
-  ctx.reply(introMessage);
+  ctx.reply(i18n.t('greeting'));
 });
 
 bot.help((ctx) => {
-  ctx.reply(`You can share with me your journey in life. I will be there for you and assit you along your path by 
-  lighting up the darker areas of your way`);
+  ctx.reply(i18n.t('helpMessage'));
+});
+
+// Command to set language
+bot.command('setlanguage', (ctx: Context) => {
+  ctx.reply('Choose your language / בחר את שפתך', Markup.inlineKeyboard([
+    Markup.button.callback('English', 'lang_en'),
+    Markup.button.callback('עברית', 'lang_he')
+  ]));
+});
+
+// Handle language selection
+bot.action('lang_en', (ctx) => {
+  const userId = ctx.from?.id;
+  if (userId) {
+    let userProfile: UserProfile = usersStore.get(userId);
+    userProfile.language = 'en-US';
+    ctx.answerCbQuery('Language set to English.');
+    ctx.reply('Language set to English.');
+  }
+});
+
+bot.action('lang_he', (ctx) => {
+  const userId = ctx.from?.id;
+  if (userId) {
+    let userProfile: UserProfile = usersStore.get(userId);
+    userProfile.language = 'heb';
+    ctx.answerCbQuery('השפה נקבעה לעברית.');
+    ctx.reply('השפה נקבעה לעברית.');
+  }
 });
 
 

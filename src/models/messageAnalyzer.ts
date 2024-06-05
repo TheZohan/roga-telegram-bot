@@ -9,8 +9,8 @@ export class MessageAnalyzer {
     usersStore: UsersStore;
     openAIClient: LLMProvider;
 
-    constructor() {
-        this.usersStore = new UsersStore();
+    constructor(usersStors: UsersStore) {
+        this.usersStore = usersStors;
         this.openAIClient = new OpenAIClient();
     }
 
