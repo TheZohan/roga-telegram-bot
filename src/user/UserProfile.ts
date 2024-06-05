@@ -5,6 +5,7 @@ export interface UserProfile {
     personalDetails: PersonalDetails;
     conversationSummary?: string;
     messageHistory: string[];
+    language: "en-US" | "heb"
 }
 
 
