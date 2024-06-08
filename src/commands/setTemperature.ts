@@ -1,5 +1,4 @@
 import { Telegraf } from "telegraf";
-import { Model } from "openai";
 
 export async function setTemperatureCommand(
   bot: Telegraf,

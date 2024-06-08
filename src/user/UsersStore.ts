@@ -12,6 +12,6 @@ export default class UsersStore {
     }
 
     get(userId: number): UserProfile {
-        return this.store.get(userId) || {id: userId, messageHistory: [], personalDetails: {}} as UserProfile;
+        return this.store.get(userId) || {id: userId, messageHistory: [], personalDetails: {}, language: 'en-US'} as UserProfile;
     }
 }
