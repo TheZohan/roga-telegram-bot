@@ -2,6 +2,7 @@ import { OpenAIClient } from "../providers/OpenAIClient";
 import { LLMProvider } from "../providers/LlmProvider";
 import { UserContext, UserProfile, PersonalDetails } from "../user/UserProfile";
 import UsersStore from "../user/UsersStore";
+import { getPrompt } from "../prompts/PromptsLoader";
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
@@ -47,10 +48,7 @@ export class MessageAnalyzer {
 
     isMessageInChatContext = async (userProfile: UserProfile, message: string) : Promise<Boolean> => {
         const userProfileString = JSON.stringify(userProfile);
-        const systemMessage = `Check if the user message is relevant to the conversation and reply with yes/no.
-        1. Relevant: The user is sharing their current mood, feelings, condition, life experience, or anything about themselves or their life.
-        2. Irrelevant: The user is asking about coding, math problems, or other technical topics not related to personal sharing.
-        The user profile is: ${userProfileString}.`;
+        const systemMessage = getPrompt("isMessageInChatContext", {userProfile: userProfileString});
         const botResponse: string = await this.openAIClient.sendMessage(systemMessage, message);
 
         const yesRegex = /\byes\b/i; // \b ensures word boundaries, i makes it case-insensitive
@@ -71,9 +69,7 @@ export class MessageAnalyzer {
     
     shouldRequestForMoreDetails = async(userProfile: UserProfile): Promise<boolean> => {
         const userProfileString = JSON.stringify(userProfile);
-        const systemMessage = `Check if the user profile has enough information about the user. reply with yes/no.
-        Does the user profile contain the following information? שge, location, personal goal or issues he wants to solve
-        UserProfile: ${userProfileString}`;
+        const systemMessage = getPrompt("shouldRequestForMoreDetails", {userProfile: userProfileString});
         const botResponse: string = await this.openAIClient.sendMessage(systemMessage, "");
 
         const yesRegex = /\byes\b/i; // \b ensures word boundaries, i makes it case-insensitive
@@ -94,33 +90,7 @@ export class MessageAnalyzer {
     askTheUser = async (userProfile: UserProfile, message: string): Promise<string> => {
         // Forward the message to OpenAI and get a response
         const userProfileString = JSON.stringify(userProfile);
-        const teachers = [
-            "Eckhart Tolle",
-            "Thich Nhat Hanh",
-            "Ram Dass",
-            "Deepak Chopra",
-            "Paramahansa Yogananda",
-            "Jiddu Krishnamurti",
-            "Mooji",
-            "Osho",
-            "Pema Chödrön",
-            "Adyashanti",
-            "Byron Katie",
-            "Sadhguru",
-            "Rumi",
-            "Nisargadatta Maharaj",
-            "Laozi"
-        ];
-        const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];        
-        const initialContext = `You are a spiritual mentor bot, trained to guide users without using repetitive greetings or questions.
-        You can imagine you are ${randomTeacher} and answer based on their teachings and style. 
-        Engage deeply, helping users understand their goals and challenges. 
-        Your purpose is to promote introspection and provide tools for self-investigation.`;
-        const guidance = `Ask a question that will assist in filling the user profile or promote introspection.`;
-
-        const systemMessage = `${initialContext}
-        ${guidance}
-        The user profile is: ${userProfileString}.`;
+        const systemMessage = getPrompt("askTheUser", {userProfile: userProfileString});
         return await this.openAIClient.sendMessage(systemMessage, message);
     }
 
@@ -144,27 +114,15 @@ export class MessageAnalyzer {
             "Nisargadatta Maharaj",
             "Laozi"
         ];
-        const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];        
-        const initialContext = `You are a spiritual mentor bot, trained to guide users without using repetitive greetings or questions.
-        You can imagine you are ${randomTeacher} and answer based on their teachings and style. 
-        Engage deeply, helping users understand their goals and challenges. 
-        Your purpose is to promote introspection and provide tools for self-investigation.`;
-        const guidance = `Remember to ask open-ended questions and promote introspection. 
-        Encourage the user to reflect deeply on their feelings, experiences, and beliefs.
-        If there are no details about the user's name (or how he would like to be called), age, gender, location, family status or any detail that might be relevant to 
-        the process ask the user for these details.
-        Please limit the conversation to topics related to spiritual practices, mindfulness, meditation, daily reflections, spiritual teachings, personal growth, and community engagement. Avoid discussing technical details, coding, or unrelated topics. Focus on providing guidance, inspiration, and support within these areas.
-        Limit the answer to 800 characters. Don't sign your name at the end`;
-
-        const systemMessage = `${initialContext}
-        ${guidance}
-        The user profile is: ${userProfileString}.`;
+        const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];     
+        const answerLength = 200;   
+        const systemMessage = getPrompt("respondToUser", {userProfile: userProfileString, randomTeacher: randomTeacher, answerLength: answerLength});
         return await this.openAIClient.sendMessage(systemMessage, message);
     }
 
     enhanceSummary = async (profile: UserProfile, userMessage: string, botResponse: string) => {
         const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`;
-        const systemMessage = `Summarize the following text: "${combinedText}"`;
+        const systemMessage = getPrompt("enhanceSummary", {combinedText: combinedText});
         profile.conversationSummary = await this.openAIClient.sendMessage(systemMessage, "");
         this.usersStore.update(profile);
     }
@@ -176,22 +134,5 @@ export class MessageAnalyzer {
         if (profile.messageHistory.length > MESSAGES_HISTORY_LENGTH) {
             profile.messageHistory.shift();
         }
-    }
-
-    executeBotAction = async (action: string, userProfile: UserProfile, userMessage: string): Promise<string> => {
-        let response: string = "I am not sure what to do";
-        switch (action) {
-            case 'requestPersonalDetails':
-                console.log("Got action:", action);
-                break;
-            case 'savePersonalDetails':
-                console.log("Got action:", action);
-                break;
-            case 'respondToUser':
-                response = await this.respondToUser(userProfile, userMessage);
-                break;
-        }
-
-        return response;
     }
 }
