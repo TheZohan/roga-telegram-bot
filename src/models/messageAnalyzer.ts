@@ -28,7 +28,7 @@ export class MessageAnalyzer {
         };
         
         // Stage 1: Check if message is in the context of spiritual journey or personal growth.
-        const isMessageInContext = await this.isMessageInChatContext(userMessage);
+        const isMessageInContext = await this.isMessageInChatContext(userProfile, userMessage);
         if (!isMessageInContext) {
             return "Thank you for sharing! While that is interesting, I'd love to assist you with topics related to spirituality or personal growth. How can I help you on your spiritual journey today?";
         }
@@ -45,25 +45,27 @@ export class MessageAnalyzer {
         return botReply;
     }
 
-    isMessageInChatContext = async (userMessage: string) : Promise<Boolean> => {
+    isMessageInChatContext = async (userProfile: UserProfile, message: string) : Promise<Boolean> => {
+        const userProfileString = JSON.stringify(userProfile);
         const systemMessage = `Check if the user message is relevant to the conversation and reply with yes/no.
         1. Relevant: The user is sharing their current mood, feelings, condition, life experience, or anything about themselves or their life.
-        2. Irrelevant: The user is asking about coding, math problems, or other technical topics not related to personal sharing.`;
-        const botResponse: string = await this.openAIClient.sendMessage(systemMessage, userMessage);
+        2. Irrelevant: The user is asking about coding, math problems, or other technical topics not related to personal sharing.
+        The user profile is: ${userProfileString}.`;
+        const botResponse: string = await this.openAIClient.sendMessage(systemMessage, message);
 
         const yesRegex = /\byes\b/i; // \b ensures word boundaries, i makes it case-insensitive
         const noRegex = /\bno\b/i;   // \b ensures word boundaries, i makes it case-insensitive
-        let response = true;
+        let result: boolean = true;
         if (yesRegex.test(botResponse)) {
-            response = true;
+            result = true;
         } else if (noRegex.test(botResponse)) {
-            response = false;
+            result = false;
         } else {
             console.log("The bot did not return yes or no!");
         }
 
-        console.log("isMessageInChatContext:", response);
-        return response;
+        console.log("isMessageInChatContext:", result);
+        return result;
     }
 
     
@@ -76,17 +78,17 @@ export class MessageAnalyzer {
 
         const yesRegex = /\byes\b/i; // \b ensures word boundaries, i makes it case-insensitive
         const noRegex = /\bno\b/i;   // \b ensures word boundaries, i makes it case-insensitive
-        let response = true;
+        let result: boolean = true;
         if (yesRegex.test(botResponse)) {
-            response = true;
+            result = true;
         } else if (noRegex.test(botResponse)) {
-            response = false;
+            result = false;
         } else {
             console.log("The bot did not return yes or no!");
         }
 
-        console.log("isMessageInChatContext:", response);
-        return response;
+        console.log("shouldRequestForMoreDetails:", result);
+        return result;
     }
 
     askTheUser = async (userProfile: UserProfile, message: string): Promise<string> => {
