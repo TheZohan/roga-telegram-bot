@@ -9,18 +9,21 @@ export class MessageAnalyzer {
     usersStore: UsersStore;
     openAIClient: LLMProvider;
 
+    
     constructor(usersStors: UsersStore) {
         this.usersStore = usersStors;
         this.openAIClient = new OpenAIClient();
     }
-
+    
     handleMessage = async(userId: number, userMessage: string, ctx: UserContext) : Promise<string> => {
         let userProfile = this.usersStore.get(userId);
         this.updateMessageHistory(userProfile, `User: ${userMessage}`);
+        // is it neccessary ?
         const personalDetails: PersonalDetails = {
             firstName: ctx.firstName,
             lastName: ctx.lastName
         }
+        // Update the user profile with the new personal details
         userProfile = {
             ...userProfile,
             personalDetails: personalDetails,
@@ -41,6 +44,7 @@ export class MessageAnalyzer {
             botReply = await this.respondToUser(userProfile, userMessage);
         }
         this.updateMessageHistory(userProfile, `Bot: ${botReply}`);
+        // Stage 3: Enhance the conversation summary with the latest messages
         this.enhanceSummary(userProfile, userMessage, botReply);
         return botReply;
     }
