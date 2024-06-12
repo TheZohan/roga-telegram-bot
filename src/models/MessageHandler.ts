@@ -6,7 +6,7 @@ import { getPrompt } from "../prompts/PromptsLoader";
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
-export class MessageAnalyzer {
+export class MessageHandler {
     usersStore: UsersStore;
     openAIClient: LLMProvider;
 
