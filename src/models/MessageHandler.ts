@@ -31,7 +31,7 @@ export class MessageHandler {
         // Stage 1: Check if message is in the context of spiritual journey or personal growth.
         const isMessageInContext = await this.isMessageInChatContext(userProfile, userMessage);
         if (!isMessageInContext) {
-            return "Thank you for sharing! While that is interesting, I'd love to assist you with topics related to spirituality or personal growth. How can I help you on your spiritual journey today?";
+            return this.informTheUserThatTheMessageIsNotInContext(userProfile, userMessage);
         }
         // Stage 2: Decide whether more information about the user is required
         const shouldRequestForPersonalDetails = await this.shouldRequestForMoreDetails(userProfile)
@@ -64,6 +64,13 @@ export class MessageHandler {
 
         console.log("isMessageInChatContext:", result);
         return result;
+    }
+
+    informTheUserThatTheMessageIsNotInContext = async (userProfile: UserProfile, message: string) : Promise<string> => {
+        const userProfileString = JSON.stringify(userProfile);
+        const systemMessage = getPrompt("informTheUserThatTheMessageIsNotInContext", {userProfile: userProfileString, lastMessage: message});
+        const botResponse: string = await this.openAIClient.sendMessage(systemMessage, message);
+        return botResponse;
     }
 
     
