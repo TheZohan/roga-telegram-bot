@@ -6,7 +6,7 @@ import { existsSync, mkdirSync } from "fs";
 import express, { Request, Response } from 'express';
 import { Message, Update } from "telegraf/typings/core/types/typegram";
 import { UserContext, UserProfile } from "./user/UserProfile";
-import { MessageAnalyzer } from "./models/messageAnalyzer";
+import { MessageHandler } from "./models/MessageHandler";
 import i18n from './il18n';
 import UsersStore from "./user/UsersStore";
 
@@ -17,7 +17,7 @@ const telegramToken = process.env.TELEGRAM_TOKEN!;
 
 const bot = new Telegraf(telegramToken);
 const usersStore = new UsersStore();
-const messageAnalyzer = new MessageAnalyzer(usersStore);
+const messageAnalyzer = new MessageHandler(usersStore);
 
 if (!existsSync(workDir)) {
   mkdirSync(workDir);
