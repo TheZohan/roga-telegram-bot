@@ -4,6 +4,7 @@ import { UserContext, UserProfile, PersonalDetails } from "../user/UserProfile";
 import UsersStore from "../user/UsersStore";
 import { getPrompt } from "../prompts/PromptsLoader";
 
+const zlib = require("zlib");
 const MESSAGES_HISTORY_LENGTH = 20;
 
 export class MessageAnalyzer {
@@ -22,7 +23,6 @@ export class MessageAnalyzer {
   ): Promise<string> => {
     let userProfile = this.usersStore.get(userId);
     this.updateMessageHistory(userProfile, `User: ${userMessage}`);
-    // is it neccessary ?
     const personalDetails: PersonalDetails = {
       firstName: ctx.firstName,
       lastName: ctx.lastName,
@@ -61,7 +61,7 @@ export class MessageAnalyzer {
     userProfile: UserProfile,
     message: string
   ): Promise<Boolean> => {
-    const userProfileString = JSON.stringify(userProfile);
+    const userProfileString = this.compressMessage(JSON.stringify(userProfile));
     const systemMessage = getPrompt("isMessageInChatContext", {
       userProfile: userProfileString,
     });
@@ -162,10 +162,13 @@ export class MessageAnalyzer {
     userMessage: string,
     botResponse: string
   ) => {
-    const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`;
+    const combinedText = this.compressMessage(
+      `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`
+    );
     const systemMessage = getPrompt("enhanceSummary", {
       combinedText: combinedText,
     });
+    console.log("Enhancing summary with:", combinedText);
     profile.conversationSummary = await this.openAIClient.sendMessage(
       systemMessage,
       ""
@@ -179,6 +182,19 @@ export class MessageAnalyzer {
     // Keep only the last 10 messages
     if (profile.messageHistory.length > MESSAGES_HISTORY_LENGTH) {
       profile.messageHistory.shift();
+    }
+  };
+
+  compressMessage = (input: string): string => {
+    try {
+      // Convert the input string to a buffer using UTF-8 encoding
+      const buffer = Buffer.from(input, "utf-8");
+      const compressed = zlib.gzipSync(buffer);
+      // Convert the compressed buffer to a base64-encoded string
+      const compressedBase64 = compressed.toString("base64");
+      return compressedBase64;
+    } catch (error) {
+      return input;
     }
   };
 }
