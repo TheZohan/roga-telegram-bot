@@ -14,8 +14,9 @@ const app = express();
 
 const workDir = "./tmp";
 const telegramToken = process.env.TELEGRAM_TOKEN!;
-
+// create new telegram chat
 const bot = new Telegraf(telegramToken);
+
 const usersStore = new UsersStore();
 const messageAnalyzer = new MessageHandler(usersStore);
 
@@ -63,7 +64,8 @@ bot.action('lang_he', (ctx) => {
 
 bot.on("message", async (ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message>>) => {
   const userMessage = (ctx.message as any).text;
-
+  
+  // if the user sent empty message
   if (!userMessage) {
     ctx.reply("Please send a text message.");
     return;
@@ -80,15 +82,19 @@ bot.on("message", async (ctx: NarrowedContext<Context<Update>, Update.MessageUpd
       return;
     }
 
+    // Get user data
     const userContext: UserContext = {
       firstName: ctx.from.first_name,
       lastName: ctx.from.last_name || "",
       username: ctx.from.username || ""
     }
 
+    // send the message to the chatbot and return the response to the user
     const botReply = await messageAnalyzer.handleMessage(userId, userMessage, userContext);
     await ctx.reply(botReply);
-  } catch (error) {
+  } 
+
+  catch (error) {
     console.log(error);
     const message = JSON.stringify(
       (error as any)?.response?.data?.error ?? "Unable to extract error"
