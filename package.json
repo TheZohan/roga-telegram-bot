@@ -27,8 +27,7 @@
     "openai": "^4.14.2",
     "telegraf": "^4.12.2",
     "ts-node": "^10.9.1",
-    "typescript": "^5.0.4",
-    "zlib": "^1.0.5"
+    "typescript": "^5.0.4"
   },
   "volta": {
     "node": "18.15.0"
