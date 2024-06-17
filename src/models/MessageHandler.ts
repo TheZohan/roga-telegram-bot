@@ -1,8 +1,9 @@
-import { OpenAIClient } from '../providers/OpenAIClient';
-import { LLMProvider } from '../providers/LlmProvider';
-import { UserContext, UserProfile, PersonalDetails } from '../user/UserProfile';
-import UsersStore from '../user/UsersStore';
-import { getPrompt } from '../prompts/PromptsLoader';
+import { OpenAIClient } from "../providers/OpenAIClient";
+import { LLMProvider } from "../providers/LlmProvider";
+import { UserContext, UserProfile, PersonalDetails } from "../user/UserProfile";
+import UsersStore from "../user/UsersStore";
+import { getPrompt } from "../prompts/PromptsLoader";
+import { gzipSync } from "zlib";
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
@@ -18,7 +19,7 @@ export class MessageHandler {
   handleMessage = async (
     userId: number,
     userMessage: string,
-    ctx: UserContext,
+    ctx: UserContext
   ): Promise<string> => {
     let userProfile = this.usersStore.get(userId);
     this.updateMessageHistory(userProfile, `User: ${userMessage}`);
@@ -35,7 +36,7 @@ export class MessageHandler {
     // Stage 1: Check if message is in the context of spiritual journey or personal growth.
     const isMessageInContext = await this.isMessageInChatContext(
       userProfile,
-      userMessage,
+      userMessage
     );
     if (!isMessageInContext) {
       return this.informTheUserThatTheMessageIsNotInContext(
@@ -55,10 +56,10 @@ export class MessageHandler {
 
   isMessageInChatContext = async (
     userProfile: UserProfile,
-    message: string,
-  ): Promise<boolean> => {
-    const userProfileString = JSON.stringify(userProfile);
-    const systemMessage = getPrompt('isMessageInChatContext', {
+    message: string
+  ): Promise<Boolean> => {
+    const userProfileString = this.compressMessage(JSON.stringify(userProfile));
+    const systemMessage = getPrompt("isMessageInChatContext", {
       userProfile: userProfileString,
     });
     const botResponse: string = await this.openAIClient.sendMessage(
@@ -205,6 +206,19 @@ export class MessageHandler {
     // Keep only the last 10 messages
     if (profile.messageHistory.length > MESSAGES_HISTORY_LENGTH) {
       profile.messageHistory.shift();
+    }
+  };
+  
+  compressMessage = (input: string): string => {
+    try {
+      // Convert the input string to a buffer using UTF-8 encoding
+      const buffer = Buffer.from(input, "utf-8");
+      const compressed = gzipSync(buffer);
+      // Convert the compressed buffer to a base64-encoded string
+      const compressedBase64 = compressed.toString("base64");
+      return compressedBase64;
+    } catch (error) {
+      return input;
     }
   };
 }
