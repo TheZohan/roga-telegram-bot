@@ -44,7 +44,7 @@ export class MessageHandler {
       );
     }
     // Stage 2: Decide whether more information about the user is required
-    const nextAction = await this.reccomendNextAction(userProfile, userMessage);
+    const nextAction = await this.reccomendNextAction(userProfile);
     console.log('recoomended next action: ', nextAction);
     const botReply = await this.respondToUser(userProfile, userMessage);
 
@@ -98,8 +98,7 @@ export class MessageHandler {
   };
 
   reccomendNextAction = async (
-    userProfile: UserProfile,
-    message: string,
+    userProfile: UserProfile
   ): Promise<string> => {
     const userProfileString = JSON.stringify(userProfile);
     const systemMessage = getPrompt('ReccomendNextAction', {
@@ -107,7 +106,7 @@ export class MessageHandler {
     });
     const botResponse: string = await this.openAIClient.sendMessage(
       systemMessage,
-      message,
+      '',
     );
     return botResponse;
   };
