@@ -1,20 +1,21 @@
-import { Telegraf } from "telegraf";
+import { Telegraf } from 'telegraf';
 
 export async function setTemperatureCommand(
   bot: Telegraf,
-  setTemp: (temp: number) => void
+  setTemp: (temp: number) => void,
 ) {
-  bot.command("temperature", (ctx) => {
+  bot.command('temperature', (ctx) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const text = (ctx.message as any).text;
-    const temp = text.split(" ")[1];
+    const temp = text.split(' ')[1];
     const temperature = parseFloat(temp);
 
     if (isNaN(temperature)) {
-      ctx.reply("Please enter a valid number.");
+      ctx.reply('Please enter a valid number.');
       return;
     }
     if (temperature < 0 || temperature > 1) {
-      ctx.reply("Temperature must be between 0 and 1.");
+      ctx.reply('Temperature must be between 0 and 1.');
       return;
     }
 

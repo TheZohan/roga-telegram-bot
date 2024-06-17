@@ -13,8 +13,13 @@ const loadPrompts = () => {
 const prompts = loadPrompts();
 
 // Function to get a prompt with variables replaced
-export const getPrompt = (action: string, variables: Record<string, any>): string => {
-  const promptTemplate = prompts[action];
+export const getPrompt = (
+  action: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  variables: Record<string, any>,
+): string => {
+  const promptTemplate =
+    prompts['prefix'] + ' ' + prompts[action] + ' ' + prompts['suffix'];
   if (!promptTemplate) {
     throw new Error(`Prompt for action "${action}" not found`);
   }

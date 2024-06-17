@@ -41,18 +41,14 @@ export class MessageHandler {
     if (!isMessageInContext) {
       return this.informTheUserThatTheMessageIsNotInContext(
         userProfile,
-        userMessage
+        userMessage,
       );
     }
     // Stage 2: Decide whether more information about the user is required
-    const shouldRequestForPersonalDetails =
-      await this.shouldRequestForMoreDetails(userProfile);
-    let botReply = "";
-    if (shouldRequestForPersonalDetails) {
-      botReply = await this.askTheUser(userProfile, userMessage);
-    } else {
-      botReply = await this.respondToUser(userProfile, userMessage);
-    }
+    const nextAction = await this.reccomendNextAction(userProfile);
+    console.log('recoomended next action: ', nextAction);
+    const botReply = await this.respondToUser(userProfile, userMessage);
+
     this.updateMessageHistory(userProfile, `Bot: ${botReply}`);
     this.enhanceSummary(userProfile, userMessage, botReply);
     return botReply;
@@ -68,7 +64,7 @@ export class MessageHandler {
     });
     const botResponse: string = await this.openAIClient.sendMessage(
       systemMessage,
-      message
+      message,
     );
 
     const yesRegex = /\byes\b/i; // \b ensures word boundaries, i makes it case-insensitive
@@ -79,39 +75,53 @@ export class MessageHandler {
     } else if (noRegex.test(botResponse)) {
       result = false;
     } else {
-      console.log("The bot did not return yes or no!");
+      console.log('The bot did not return yes or no!');
     }
 
-    console.log("isMessageInChatContext:", result);
+    console.log('isMessageInChatContext:', result);
     return result;
   };
 
   informTheUserThatTheMessageIsNotInContext = async (
     userProfile: UserProfile,
-    message: string
+    message: string,
   ): Promise<string> => {
     const userProfileString = JSON.stringify(userProfile);
     const systemMessage = getPrompt(
-      "informTheUserThatTheMessageIsNotInContext",
-      { userProfile: userProfileString, lastMessage: message }
+      'informTheUserThatTheMessageIsNotInContext',
+      { userProfile: userProfileString, lastMessage: message },
     );
     const botResponse: string = await this.openAIClient.sendMessage(
       systemMessage,
-      message
+      message,
+    );
+    return botResponse;
+  };
+
+  reccomendNextAction = async (
+    userProfile: UserProfile
+  ): Promise<string> => {
+    const userProfileString = JSON.stringify(userProfile);
+    const systemMessage = getPrompt('ReccomendNextAction', {
+      userProfile: userProfileString,
+    });
+    const botResponse: string = await this.openAIClient.sendMessage(
+      systemMessage,
+      '',
     );
     return botResponse;
   };
 
   shouldRequestForMoreDetails = async (
-    userProfile: UserProfile
+    userProfile: UserProfile,
   ): Promise<boolean> => {
     const userProfileString = JSON.stringify(userProfile);
-    const systemMessage = getPrompt("shouldRequestForMoreDetails", {
+    const systemMessage = getPrompt('shouldRequestForMoreDetails', {
       userProfile: userProfileString,
     });
     const botResponse: string = await this.openAIClient.sendMessage(
       systemMessage,
-      ""
+      '',
     );
 
     const yesRegex = /\byes\b/i; // \b ensures word boundaries, i makes it case-insensitive
@@ -122,20 +132,20 @@ export class MessageHandler {
     } else if (noRegex.test(botResponse)) {
       result = false;
     } else {
-      console.log("The bot did not return yes or no!");
+      console.log('The bot did not return yes or no!');
     }
 
-    console.log("shouldRequestForMoreDetails:", result);
+    console.log('shouldRequestForMoreDetails:', result);
     return result;
   };
 
   askTheUser = async (
     userProfile: UserProfile,
-    message: string
+    message: string,
   ): Promise<string> => {
     // Forward the message to OpenAI and get a response
     const userProfileString = JSON.stringify(userProfile);
-    const systemMessage = getPrompt("askTheUser", {
+    const systemMessage = getPrompt('askTheUser', {
       userProfile: userProfileString,
     });
     return await this.openAIClient.sendMessage(systemMessage, message);
@@ -143,30 +153,30 @@ export class MessageHandler {
 
   respondToUser = async (
     userProfile: UserProfile,
-    message: string
+    message: string,
   ): Promise<string> => {
     // Forward the message to OpenAI and get a response
     const userProfileString = JSON.stringify(userProfile);
     const teachers = [
-      "Eckhart Tolle",
-      "Thich Nhat Hanh",
-      "Ram Dass",
-      "Deepak Chopra",
-      "Paramahansa Yogananda",
-      "Jiddu Krishnamurti",
-      "Mooji",
-      "Osho",
-      "Pema Chödrön",
-      "Adyashanti",
-      "Byron Katie",
-      "Sadhguru",
-      "Rumi",
-      "Nisargadatta Maharaj",
-      "Laozi",
+      'Eckhart Tolle',
+      'Thich Nhat Hanh',
+      'Ram Dass',
+      'Deepak Chopra',
+      'Paramahansa Yogananda',
+      'Jiddu Krishnamurti',
+      'Mooji',
+      'Osho',
+      'Pema Chödrön',
+      'Adyashanti',
+      'Byron Katie',
+      'Sadhguru',
+      'Rumi',
+      'Nisargadatta Maharaj',
+      'Laozi',
     ];
     const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];
     const answerLength = 200;
-    const systemMessage = getPrompt("respondToUser", {
+    const systemMessage = getPrompt('respondToUser', {
       userProfile: userProfileString,
       randomTeacher: randomTeacher,
       answerLength: answerLength,
@@ -177,17 +187,15 @@ export class MessageHandler {
   enhanceSummary = async (
     profile: UserProfile,
     userMessage: string,
-    botResponse: string
+    botResponse: string,
   ) => {
-    const combinedText = this.compressMessage(
-      `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`
-    );
-    const systemMessage = getPrompt("enhanceSummary", {
+    const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`;
+    const systemMessage = getPrompt('enhanceSummary', {
       combinedText: combinedText,
     });
     profile.conversationSummary = await this.openAIClient.sendMessage(
       systemMessage,
-      ""
+      '',
     );
     this.usersStore.update(profile);
   };
@@ -200,6 +208,7 @@ export class MessageHandler {
       profile.messageHistory.shift();
     }
   };
+  
   compressMessage = (input: string): string => {
     try {
       // Convert the input string to a buffer using UTF-8 encoding
