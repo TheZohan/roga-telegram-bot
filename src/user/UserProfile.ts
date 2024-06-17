@@ -1,25 +1,24 @@
 export interface UserProfile {
-    id: number;
-    is_bot?: boolean;
-    username?: string;
-    personalDetails: PersonalDetails;
-    conversationSummary?: string;
-    messageHistory: string[];
-    language: "en-US" | "heb"
+  id: number;
+  is_bot?: boolean;
+  username?: string;
+  personalDetails: PersonalDetails;
+  conversationSummary?: string;
+  messageHistory: string[];
+  language: 'en-US' | 'heb';
 }
 
-
 export interface UserContext {
-    firstName: string,
-    lastName: string,
-    username: string
+  firstName: string;
+  lastName: string;
+  username: string;
 }
 
 export interface PersonalDetails {
-    firstName?: string;
-    lastName?: string;
-    age?: number;
-    gender?: string;
-    maritalStatus?: string;
-    location?: string;
+  firstName?: string;
+  lastName?: string;
+  age?: number;
+  gender?: string;
+  maritalStatus?: string;
+  location?: string;
 }
