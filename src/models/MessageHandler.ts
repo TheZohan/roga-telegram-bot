@@ -34,13 +34,10 @@ export class MessageHandler {
             return this.informTheUserThatTheMessageIsNotInContext(userProfile, userMessage);
         }
         // Stage 2: Decide whether more information about the user is required
-        const shouldRequestForPersonalDetails = await this.shouldRequestForMoreDetails(userProfile)
-        let botReply = "";
-        if (shouldRequestForPersonalDetails) {
-            botReply = await this.askTheUser(userProfile, userMessage);
-        } else {
-            botReply = await this.respondToUser(userProfile, userMessage);
-        }
+        const nextAction = await this.reccomendNextAction(userProfile, userMessage)
+        console.log("recoomended next action: ", nextAction)
+        const botReply = await this.respondToUser(userProfile, userMessage);
+        
         this.updateMessageHistory(userProfile, `Bot: ${botReply}`);
         this.enhanceSummary(userProfile, userMessage, botReply);
         return botReply;
@@ -69,6 +66,13 @@ export class MessageHandler {
     informTheUserThatTheMessageIsNotInContext = async (userProfile: UserProfile, message: string) : Promise<string> => {
         const userProfileString = JSON.stringify(userProfile);
         const systemMessage = getPrompt("informTheUserThatTheMessageIsNotInContext", {userProfile: userProfileString, lastMessage: message});
+        const botResponse: string = await this.openAIClient.sendMessage(systemMessage, message);
+        return botResponse;
+    }
+
+    reccomendNextAction = async (userProfile: UserProfile, message: string) : Promise<string> => {
+        const userProfileString = JSON.stringify(userProfile);
+        const systemMessage = getPrompt("ReccomendNextAction", {userProfile: userProfileString});
         const botResponse: string = await this.openAIClient.sendMessage(systemMessage, message);
         return botResponse;
     }
