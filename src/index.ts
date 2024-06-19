@@ -2,26 +2,20 @@ import dotenv from "dotenv";
 dotenv.config();
 
 import { NarrowedContext, Context, Markup, Telegraf } from "telegraf";
-import { existsSync, mkdirSync } from "fs";
 import express, { Request, Response } from 'express';
 import { Message, Update } from "telegraf/typings/core/types/typegram";
 import { UserContext, UserProfile } from "./user/UserProfile";
 import { MessageHandler } from "./models/MessageHandler";
 import i18n from './il18n';
-import UsersStore from "./user/UsersStore";
-
+import { UserStore, createUserStore } from "./user/UserStore";
 const app = express();
-
-const workDir = "./tmp";
 const telegramToken = process.env.TELEGRAM_TOKEN!;
 
 const bot = new Telegraf(telegramToken);
-const usersStore = new UsersStore();
-const messageAnalyzer = new MessageHandler(usersStore);
-
-if (!existsSync(workDir)) {
-  mkdirSync(workDir);
-}
+let userStore: UserStore;
+(async () => {
+  userStore = await createUserStore();
+})()
 
 bot.start(async (ctx) => {
   ctx.reply(i18n.t('greeting'));
@@ -40,20 +34,20 @@ bot.command('setlanguage', (ctx: Context) => {
 });
 
 // Handle language selection
-bot.action('lang_en', (ctx) => {
-  const userId = ctx.from?.id;
+bot.action('lang_en', async (ctx) => {
+  const userId: string = ctx.from?.id.toString()!;
   if (userId) {
-    let userProfile: UserProfile = usersStore.get(userId);
+    let userProfile: UserProfile = await userStore.getUser(userId);
     userProfile.language = 'en-US';
     ctx.answerCbQuery('Language set to English.');
     ctx.reply('Language set to English.');
   }
 });
 
-bot.action('lang_he', (ctx) => {
-  const userId = ctx.from?.id;
+bot.action('lang_he', async (ctx) => {
+  const userId: string = ctx.from?.id.toString()!;
   if (userId) {
-    let userProfile: UserProfile = usersStore.get(userId);
+    let userProfile: UserProfile = await userStore.getUser(userId);
     userProfile.language = 'heb';
     ctx.answerCbQuery('השפה נקבעה לעברית.');
     ctx.reply('השפה נקבעה לעברית.');
@@ -72,20 +66,17 @@ bot.on("message", async (ctx: NarrowedContext<Context<Update>, Update.MessageUpd
   console.log("Input: ", userMessage);
 
   await ctx.sendChatAction("typing");
-  const userId = ctx.from?.id;
+  const userId: string = ctx.from?.id.toString()!;
 
   try {
-    if (!userId) {
-      console.log("userId is null");
-      return;
-    }
-
     const userContext: UserContext = {
       firstName: ctx.from.first_name,
       lastName: ctx.from.last_name || "",
       username: ctx.from.username || ""
     }
 
+
+    const messageAnalyzer = new MessageHandler(userStore);
     const botReply = await messageAnalyzer.handleMessage(userId, userMessage, userContext);
     await ctx.reply(botReply);
   } catch (error) {
@@ -106,7 +97,13 @@ bot.launch().then(() => {
   console.log("Bot launched");
 });
 
-process.on("SIGTERM", () => {
+// Gracefully close the connection when the process exits
+process.on('SIGINT', async () => {
+  process.exit();
+});
+
+process.on("SIGTERM", async () => {
+  userStore.disconnect()
   bot.stop();
 });
 

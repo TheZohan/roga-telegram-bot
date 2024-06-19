@@ -1,27 +1,27 @@
 import { OpenAIClient } from "../providers/OpenAIClient";
 import { LLMProvider } from "../providers/LlmProvider";
 import { UserContext, UserProfile, PersonalDetails } from "../user/UserProfile";
-import UsersStore from "../user/UsersStore";
 import { getPrompt } from "../prompts/PromptsLoader";
 import { gzipSync } from "zlib";
+import { UserStore } from "../user/UserStore";
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
 export class MessageHandler {
-  usersStore: UsersStore;
+  userStore: UserStore;
   openAIClient: LLMProvider;
 
-  constructor(usersStors: UsersStore) {
-    this.usersStore = usersStors;
+  constructor(userStore: UserStore) {
+    this.userStore = userStore;
     this.openAIClient = new OpenAIClient();
   }
 
   handleMessage = async (
-    userId: number,
+    userId: string,
     userMessage: string,
     ctx: UserContext
   ): Promise<string> => {
-    let userProfile = this.usersStore.get(userId);
+    let userProfile = await this.userStore.getUser(userId);
     this.updateMessageHistory(userProfile, `User: ${userMessage}`);
     const personalDetails: PersonalDetails = {
       firstName: ctx.firstName,
@@ -197,7 +197,7 @@ export class MessageHandler {
       systemMessage,
       '',
     );
-    this.usersStore.update(profile);
+    this.userStore.saveUser(profile);
   };
 
   updateMessageHistory = (profile: UserProfile, newMessage: string): void => {

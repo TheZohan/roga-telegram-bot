@@ -1,5 +1,5 @@
 export interface UserProfile {
-  id: number;
+  id: string;
   is_bot?: boolean;
   username?: string;
   personalDetails: PersonalDetails;
