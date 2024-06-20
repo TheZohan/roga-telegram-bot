@@ -1,9 +1,15 @@
-import { OpenAIClient } from "../providers/OpenAIClient";
-import { LLMProvider } from "../providers/LlmProvider";
-import { UserContext, UserProfile, PersonalDetails } from "../user/UserProfile";
-import { getPrompt } from "../prompts/PromptsLoader";
-import { gzipSync } from "zlib";
-import { UserStore } from "../user/UserStore";
+import { OpenAIClient } from '../providers/OpenAIClient';
+import { LLMProvider } from '../providers/LlmProvider';
+import {
+  UserContext,
+  UserProfile,
+  PersonalDetails,
+  Message,
+} from '../user/UserProfile';
+import { getPrompt } from '../prompts/PromptsLoader';
+import { gzipSync } from 'zlib';
+import { UserStore } from '../user/UserStore';
+import { v4 as uuidv4 } from 'uuid';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
@@ -19,10 +25,10 @@ export class MessageHandler {
   handleMessage = async (
     userId: string,
     userMessage: string,
-    ctx: UserContext
+    ctx: UserContext,
   ): Promise<string> => {
     let userProfile = await this.userStore.getUser(userId);
-    this.updateMessageHistory(userProfile, `User: ${userMessage}`);
+    this.updateMessageHistory(userProfile, 'user', userMessage);
     const personalDetails: PersonalDetails = {
       firstName: ctx.firstName,
       lastName: ctx.lastName,
@@ -36,7 +42,7 @@ export class MessageHandler {
     // Stage 1: Check if message is in the context of spiritual journey or personal growth.
     const isMessageInContext = await this.isMessageInChatContext(
       userProfile,
-      userMessage
+      userMessage,
     );
     if (!isMessageInContext) {
       return this.informTheUserThatTheMessageIsNotInContext(
@@ -49,17 +55,17 @@ export class MessageHandler {
     console.log('recoomended next action: ', nextAction);
     const botReply = await this.respondToUser(userProfile, userMessage);
 
-    this.updateMessageHistory(userProfile, `Bot: ${botReply}`);
+    this.updateMessageHistory(userProfile, 'bot', botReply);
     this.enhanceSummary(userProfile, userMessage, botReply);
     return botReply;
   };
 
   isMessageInChatContext = async (
     userProfile: UserProfile,
-    message: string
-  ): Promise<Boolean> => {
+    message: string,
+  ): Promise<boolean> => {
     const userProfileString = this.compressMessage(JSON.stringify(userProfile));
-    const systemMessage = getPrompt("isMessageInChatContext", {
+    const systemMessage = getPrompt('isMessageInChatContext', {
       userProfile: userProfileString,
     });
     const botResponse: string = await this.openAIClient.sendMessage(
@@ -98,9 +104,7 @@ export class MessageHandler {
     return botResponse;
   };
 
-  reccomendNextAction = async (
-    userProfile: UserProfile
-  ): Promise<string> => {
+  reccomendNextAction = async (userProfile: UserProfile): Promise<string> => {
     const userProfileString = JSON.stringify(userProfile);
     const systemMessage = getPrompt('ReccomendNextAction', {
       userProfile: userProfileString,
@@ -200,22 +204,36 @@ export class MessageHandler {
     this.userStore.saveUser(profile);
   };
 
-  updateMessageHistory = (profile: UserProfile, newMessage: string): void => {
-    profile.messageHistory.push(newMessage);
+  updateMessageHistory = (
+    profile: UserProfile,
+    role: 'user' | 'bot',
+    newMessage: string,
+  ): void => {
+    profile.messageHistory.push(`${role}: ${newMessage}`);
 
     // Keep only the last 10 messages
     if (profile.messageHistory.length > MESSAGES_HISTORY_LENGTH) {
       profile.messageHistory.shift();
     }
+
+    const message: Message = {
+      id: uuidv4(),
+      userId: profile.id,
+      role: role,
+      timestamp: new Date(),
+      content: newMessage,
+    };
+
+    this.userStore.addMessage(message);
   };
-  
+
   compressMessage = (input: string): string => {
     try {
       // Convert the input string to a buffer using UTF-8 encoding
-      const buffer = Buffer.from(input, "utf-8");
+      const buffer = Buffer.from(input, 'utf-8');
       const compressed = gzipSync(buffer);
       // Convert the compressed buffer to a base64-encoded string
-      const compressedBase64 = compressed.toString("base64");
+      const compressedBase64 = compressed.toString('base64');
       return compressedBase64;
     } catch (error) {
       return input;
