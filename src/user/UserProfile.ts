@@ -22,3 +22,11 @@ export interface PersonalDetails {
   maritalStatus?: string;
   location?: string;
 }
+
+export interface Message {
+  id: string;
+  userId: string;
+  role: 'user' | 'bot';
+  timestamp: Date;
+  content: string;
+}
