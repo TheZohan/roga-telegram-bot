@@ -49,6 +49,11 @@ export class RedisUserStore implements UserStore {
     );
   }
 
+  // Fetch all user message keys
+  async getAllMessageKeys(): Promise<string[]> {
+    return await this.client.keys('messages:*');
+  }
+
   async getMessageHistory(userId: string): Promise<Message[]> {
     const messages = await this.client.lRange(`messages:${userId}`, 0, -1);
     return messages.map((message) => JSON.parse(message));

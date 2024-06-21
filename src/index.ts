@@ -7,7 +7,9 @@ import { Message, Update } from 'telegraf/typings/core/types/typegram';
 import { UserContext, UserProfile } from './user/UserProfile';
 import { MessageHandler } from './models/MessageHandler';
 import i18n from './il18n';
+import fs from 'fs';
 import { UserStore, createUserStore } from './user/UserStore';
+import { exportMessageHistoryToCsv } from './user/MessageHistoryExporter';
 const app = express();
 const telegramToken = process.env.TELEGRAM_TOKEN!;
 
@@ -123,6 +125,43 @@ process.on('SIGTERM', async () => {
 
 app.get('/', (req: Request, res: Response) => {
   res.send(`Hello, I'm alive!`);
+});
+
+// Middleware to secure the endpoint
+app.use((req, res, next) => {
+  const auth = {
+    login: process.env.ADMIN_USER!,
+    password: process.env.ADMIN_PASSWORD!,
+  };
+
+  const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+  const [login, password] = Buffer.from(b64auth, 'base64')
+    .toString()
+    .split(':');
+
+  if (login && password && login === auth.login && password === auth.password) {
+    return next();
+  }
+
+  res.set('WWW-Authenticate', 'Basic realm="401"');
+  res.status(401).send('Authentication required.');
+});
+
+app.get('/export', async (req: Request, res: Response) => {
+  try {
+    const csvPath = await exportMessageHistoryToCsv();
+    res.download(csvPath, (err) => {
+      if (err) {
+        console.error('Error sending the file:', err);
+        res.status(500).send('Error exporting message history.');
+      } else {
+        console.log('File sent successfully.');
+        fs.unlinkSync(csvPath); // Delete the file after sending
+      }
+    });
+  } catch (error) {
+    res.status(500).send('Error exporting message history.');
+  }
 });
 
 const PORT = process.env.PORT || 3000;
