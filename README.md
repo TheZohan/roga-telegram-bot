@@ -35,7 +35,7 @@ Dev bot name:
 
 To use Redis to store User Profiles:
 Install Redis
-Add: REDIS_HOST,REDIS_PORT environment variables to .env file
+Add: REDISHOST,REDISPORT environment variables to .env file
 
 To connect to local Redis:
 redis-cli -h localhost -p 6379
