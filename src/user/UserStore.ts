@@ -11,8 +11,8 @@ export interface UserStore {
 }
 
 export const createUserStore = async (): Promise<UserStore> => {
-  const redisHost = process.env.REDIS_HOST!;
-  const redisPort = +process.env.REDIS_PORT!;
+  const redisHost = process.env.REDISHOST!;
+  const redisPort = +process.env.REDISPORT!;
   const redisStore = new RedisUserStore(redisHost, redisPort);
 
   try {
