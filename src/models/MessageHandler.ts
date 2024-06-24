@@ -50,9 +50,7 @@ export class MessageHandler {
         userMessage,
       );
     }
-    // Stage 2: Decide whether more information about the user is required
-    const nextAction = await this.reccomendNextAction(userProfile);
-    console.log('recoomended next action: ', nextAction);
+
     const botReply = await this.respondToUser(userProfile, userMessage);
 
     this.updateMessageHistory(userProfile, 'bot', botReply);
@@ -116,44 +114,9 @@ export class MessageHandler {
     return botResponse;
   };
 
-  shouldRequestForMoreDetails = async (
-    userProfile: UserProfile,
-  ): Promise<boolean> => {
-    const userProfileString = JSON.stringify(userProfile);
-    const systemMessage = getPrompt('shouldRequestForMoreDetails', {
-      userProfile: userProfileString,
-    });
-    const botResponse: string = await this.openAIClient.sendMessage(
-      systemMessage,
-      '',
-    );
-
-    const yesRegex = /\byes\b/i; // \b ensures word boundaries, i makes it case-insensitive
-    const noRegex = /\bno\b/i; // \b ensures word boundaries, i makes it case-insensitive
-    let result: boolean = true;
-    if (yesRegex.test(botResponse)) {
-      result = true;
-    } else if (noRegex.test(botResponse)) {
-      result = false;
-    } else {
-      console.log('The bot did not return yes or no!');
-    }
-
-    console.log('shouldRequestForMoreDetails:', result);
-    return result;
-  };
-
-  askTheUser = async (
-    userProfile: UserProfile,
-    message: string,
-  ): Promise<string> => {
-    // Forward the message to OpenAI and get a response
-    const userProfileString = JSON.stringify(userProfile);
-    const systemMessage = getPrompt('askTheUser', {
-      userProfile: userProfileString,
-    });
-    return await this.openAIClient.sendMessage(systemMessage, message);
-  };
+  getRandomNumber(min: number, max: number): number {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
 
   respondToUser = async (
     userProfile: UserProfile,
@@ -179,7 +142,7 @@ export class MessageHandler {
       'Laozi',
     ];
     const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];
-    const answerLength = 200;
+    const answerLength = this.getRandomNumber(200, 400);
     const systemMessage = getPrompt('respondToUser', {
       userProfile: userProfileString,
       randomTeacher: randomTeacher,
