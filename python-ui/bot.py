@@ -1,13 +1,15 @@
+from cohere_tools import CohereHandler, ConvHistoriesManager
+
+llm_handler = CohereHandler()
+histories = ConvHistoriesManager()
+conv_id = histories.new_conv()
+
 def chat(user_response):
-    if (user_response != 'bye'):
-        if (user_response == 'thanks' or user_response == 'thank you'):
-            flag = False
-            print("KKWBOT: You are welcome..")
-            return "You are welcome.."
-        else:
-            return "What do you want?"
-    else:
-        flag = False
-        print("KKWBOT: Bye! take care..")
-        return "Bye! take care.."
+    histories.add_msg(conv_id, user_response, 'USER')
+    bot_response = llm_handler.chat(user_response, histories[conv_id])
+    histories.add_msg(conv_id, bot_response['text'], 'CHATBOT')
+    return bot_response['text']
+
+
+    
 

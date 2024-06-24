@@ -2,7 +2,7 @@
   "name": "telegram-gpt-bot",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "index.ts",
   "scripts": {
     "build": "tsc",
     "copy-files": "copyfiles -u 1 src/prompts/*.yaml dist",
