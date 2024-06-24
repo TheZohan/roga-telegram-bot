@@ -5,3 +5,9 @@ tmp
 .vscode
 logs
 message_history*.*
+.DS_Store
+
+*.pyc
+
+build
+dist
