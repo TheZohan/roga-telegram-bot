@@ -6,6 +6,12 @@ export interface UserProfile {
   conversationSummary?: string;
   messageHistory: string[];
   language: 'en-US' | 'heb';
+  satisfactionLevel: Rating[];
+}
+
+export interface Rating {
+  timestamp: Date;
+  rating: number;
 }
 
 export interface UserContext {
