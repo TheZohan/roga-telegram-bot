@@ -5,20 +5,27 @@ import {
   UserProfile,
   PersonalDetails,
   Message,
+  Rating,
 } from '../user/UserProfile';
 import { getPrompt } from '../prompts/PromptsLoader';
 import { gzipSync } from 'zlib';
 import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
+import {
+  RatingSelector,
+  SetRatingCallback,
+} from '../TelegramCommands/ratingSelector';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
 export class MessageHandler {
   userStore: UserStore;
+  ratingSelector: RatingSelector;
   openAIClient: LLMProvider;
 
-  constructor(userStore: UserStore) {
+  constructor(userStore: UserStore, ratingSelector: RatingSelector) {
     this.userStore = userStore;
+    this.ratingSelector = ratingSelector;
     this.openAIClient = new OpenAIClient();
   }
 
@@ -51,6 +58,7 @@ export class MessageHandler {
       );
     }
 
+    //await this.createSatisfactionLevelSelector();
     const botReply = await this.respondToUser(userProfile, userMessage);
 
     this.updateMessageHistory(userProfile, 'bot', botReply);
@@ -117,6 +125,33 @@ export class MessageHandler {
   getRandomNumber(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
+
+  createSatisfactionLevelSelector = async (): Promise<void> => {
+    console.log('createSatisfactionLevelSelector');
+    const setRatingCallback: SetRatingCallback = async (
+      rating: number,
+      userId: string,
+    ) => {
+      console.log('Setting rating for user', userId);
+      const userProfile: UserProfile = await this.userStore.getUser(userId);
+      const ratingObj: Rating = {
+        timestamp: new Date(),
+        rating: rating,
+      };
+      if (!userProfile.satisfactionLevel) {
+        userProfile.satisfactionLevel = [];
+      }
+      userProfile.satisfactionLevel.push(ratingObj);
+      this.userStore.saveUser(userProfile);
+    };
+    this.ratingSelector.createRatingSelector(
+      'satisfactionLevel',
+      'How satisfied are you from your life right now?',
+      8,
+      3,
+      setRatingCallback,
+    );
+  };
 
   respondToUser = async (
     userProfile: UserProfile,

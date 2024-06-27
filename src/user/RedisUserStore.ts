@@ -37,6 +37,7 @@ export class RedisUserStore implements UserStore {
       : ({
           id: userId,
           messageHistory: [],
+          satisfactionLevel: [],
           personalDetails: {},
           language: 'en-US',
         } as UserProfile);

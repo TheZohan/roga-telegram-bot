@@ -15,6 +15,7 @@ export class MemoryUserStore implements UserStore {
       ({
         id: userId,
         messageHistory: [],
+        satisfactionLevel: [],
         personalDetails: {},
         language: 'en-US',
       } as UserProfile)
