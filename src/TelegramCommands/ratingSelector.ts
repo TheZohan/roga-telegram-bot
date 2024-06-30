@@ -1,7 +1,7 @@
 import { Context, Markup, Telegraf } from 'telegraf';
 
 export type SetSelectionCallback = (
-  rating: string,
+  level: string,
   userId: string,
 ) => Promise<void>;
 
@@ -44,7 +44,7 @@ export class RatingSelector implements TelegramSelector {
         if (ctx.from?.id.toString()) {
           setSelectionCallback(value, ctx.from?.id.toString());
           ctx.answerCbQuery('Thank you.');
-          ctx.reply('Your selection is saved');
+          ctx.reply(`You feel ${value} now`);
         }
       });
     });
