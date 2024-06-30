@@ -6,7 +6,7 @@ export type SetSelectionCallback = (
 ) => Promise<void>;
 
 export interface TelegramSelector {
-  creategSelector(
+  createSelector(
     subjectId: string,
     displayText: string,
     values: string[],
@@ -23,7 +23,7 @@ export class RatingSelector implements TelegramSelector {
     this.ctx = ctx;
   }
 
-  creategSelector = async (
+  createSelector = async (
     subjectId: string,
     displayText: string,
     values: string[],

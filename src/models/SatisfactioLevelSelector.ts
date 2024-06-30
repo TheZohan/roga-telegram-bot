@@ -40,7 +40,7 @@ export const createSatisfactionLevelSelector = async (
     userProfile.satisfactionLevel.push(ratingObj);
     userStore.saveUser(userProfile);
   };
-  ratingSelector.creategSelector(
+  ratingSelector.createSelector(
     'satisfactionLevel',
     'How satisfied are you from your life right now?',
     satisfactionLevels,
