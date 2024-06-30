@@ -1,11 +1,20 @@
 import { Context, Markup, Telegraf } from 'telegraf';
 
-export type SetRatingCallback = (
-  rating: number,
+export type SetSelectionCallback = (
+  rating: string,
   userId: string,
 ) => Promise<void>;
 
-export class RatingSelector {
+export interface TelegramSelector {
+  creategSelector(
+    subjectId: string,
+    displayText: string,
+    values: string[],
+    setSelectionCallback: SetSelectionCallback,
+  ): Promise<void>;
+}
+
+export class RatingSelector implements TelegramSelector {
   bot: Telegraf;
   ctx: Context;
 
@@ -14,29 +23,30 @@ export class RatingSelector {
     this.ctx = ctx;
   }
 
-  createRatingSelector = (
-    ratingSubjectId: string,
-    ratingText: string,
-    range: number, // max is 8
-    start: number = 0,
-    setRatingCallback: SetRatingCallback,
+  creategSelector = async (
+    subjectId: string,
+    displayText: string,
+    values: string[],
+    setSelectionCallback: SetSelectionCallback,
   ) => {
-    const scale_markup = [];
-    for (let i = start; i <= start + range; i++) {
-      scale_markup.push(
-        Markup.button.callback(`${i}`, `rating_${ratingSubjectId}_${i}`),
-      );
+    if (values.length > 8) {
+      console.log(`Telegram can't add more than 8 values to a selector`);
     }
-    this.ctx.reply(ratingText, Markup.inlineKeyboard(scale_markup));
+
+    const selectorMarkup = values.map((value) => {
+      return Markup.button.callback(`${value}`, `rating_${subjectId}_${value}`);
+    });
+
+    this.ctx.reply(displayText, Markup.inlineKeyboard(selectorMarkup));
     // Handle language selection
-    for (let i = start; i <= start + range; i++) {
-      this.bot.action(`rating_${ratingSubjectId}_${i}`, async (ctx) => {
+    values.forEach((value: string) => {
+      this.bot.action(`rating_${subjectId}_${value}`, async (ctx) => {
         if (ctx.from?.id.toString()) {
-          setRatingCallback(i, ctx.from?.id.toString());
+          setSelectionCallback(value, ctx.from?.id.toString());
           ctx.answerCbQuery('Thank you.');
           ctx.reply('Your selection is saved');
         }
       });
-    }
+    });
   };
 }

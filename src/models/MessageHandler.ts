@@ -13,7 +13,7 @@ import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
 import {
   RatingSelector,
-  SetRatingCallback,
+  SetSelectionCallback,
 } from '../TelegramCommands/ratingSelector';
 
 const MESSAGES_HISTORY_LENGTH = 20;
@@ -128,15 +128,15 @@ export class MessageHandler {
 
   createSatisfactionLevelSelector = async (): Promise<void> => {
     console.log('createSatisfactionLevelSelector');
-    const setRatingCallback: SetRatingCallback = async (
-      rating: number,
+    const setRatingCallback: SetSelectionCallback = async (
+      rating: string,
       userId: string,
     ) => {
       console.log('Setting rating for user', userId);
       const userProfile: UserProfile = await this.userStore.getUser(userId);
       const ratingObj: Rating = {
         timestamp: new Date(),
-        rating: rating,
+        rating: +rating,
       };
       if (!userProfile.satisfactionLevel) {
         userProfile.satisfactionLevel = [];
@@ -144,11 +144,10 @@ export class MessageHandler {
       userProfile.satisfactionLevel.push(ratingObj);
       this.userStore.saveUser(userProfile);
     };
-    this.ratingSelector.createRatingSelector(
+    this.ratingSelector.creategSelector(
       'satisfactionLevel',
       'How satisfied are you from your life right now?',
-      8,
-      3,
+      ['3', '4', '5', '6', '7', '8', '9', '10'],
       setRatingCallback,
     );
   };
