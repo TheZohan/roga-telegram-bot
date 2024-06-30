@@ -9,9 +9,17 @@ export interface UserProfile {
   satisfactionLevel: Rating[];
 }
 
+export enum FriendlySatisfactionLevel {
+  Terrible = 'Awful',
+  Bad = 'Bad',
+  Meh = 'Meh',
+  Good = 'Good',
+  Awesome = 'Great',
+}
+
 export interface Rating {
   timestamp: Date;
-  rating: number;
+  level: number;
 }
 
 export interface UserContext {
