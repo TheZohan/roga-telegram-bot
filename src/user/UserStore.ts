@@ -7,6 +7,9 @@ export interface UserStore {
   getUser(userId: string): Promise<UserProfile>;
   addMessage(message: Message): Promise<void>;
   getMessageHistory(userId: string): Promise<Message[]>;
+  clearMessageHistory(userId: string): Promise<void>;
+  getBackups(userId: string): Promise<string[]>;
+  restoreFromBackup(backupKey: string): Promise<void>;
   disconnect(): void;
 }
 

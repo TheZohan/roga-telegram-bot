@@ -31,6 +31,22 @@ export class MemoryUserStore implements UserStore {
     return this.conversationHistory.get(userId)!;
   }
 
+  async clearMessageHistory(userId: string): Promise<void> {
+    const userProfile = await this.getUser(userId);
+    userProfile.conversationSummary = '';
+    userProfile.messageHistory = [];
+    this.saveUser(userProfile);
+    this.conversationHistory.set(userId, []);
+  }
+
+  getBackups(): Promise<string[]> {
+    throw new Error('Method not implemented.');
+  }
+  restoreFromBackup(backupKey: string): Promise<void> {
+    console.log(backupKey);
+    throw new Error('Method not implemented.');
+  }
+
   disconnect(): void {
     return;
   }
