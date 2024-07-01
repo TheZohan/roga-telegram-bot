@@ -5,6 +5,7 @@ import {
   UserProfile,
   PersonalDetails,
   Message,
+  StandardRoles,
 } from '../user/UserProfile';
 import { getPrompt } from '../prompts/PromptsLoader';
 import { gzipSync } from 'zlib';
@@ -12,6 +13,7 @@ import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
 import { createSatisfactionLevelSelector } from './SatisfactioLevelSelector';
+import CohereApi from '../providers/CohereApi';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
@@ -24,6 +26,7 @@ export class MessageHandler {
     this.userStore = userStore;
     this.ratingSelector = ratingSelector;
     this.openAIClient = new OpenAIClient();
+    //this.openAIClient = new CohereApi();
   }
 
   handleMessage = async (
@@ -32,7 +35,7 @@ export class MessageHandler {
     ctx: UserContext,
   ): Promise<string> => {
     let userProfile = await this.userStore.getUser(userId);
-    this.updateMessageHistory(userProfile, 'user', userMessage);
+    this.updateMessageHistory(userProfile, StandardRoles.user, userMessage);
     const personalDetails: PersonalDetails = {
       firstName: ctx.firstName,
       lastName: ctx.lastName,
@@ -58,7 +61,7 @@ export class MessageHandler {
     //await createSatisfactionLevelSelector(this.userStore, this.ratingSelector);
     const botReply = await this.respondToUser(userProfile, userMessage);
 
-    this.updateMessageHistory(userProfile, 'bot', botReply);
+    this.updateMessageHistory(userProfile, StandardRoles.assistant, botReply);
     this.enhanceSummary(userProfile, userMessage, botReply);
     return botReply;
   };
@@ -74,6 +77,7 @@ export class MessageHandler {
     const botResponse: string = await this.openAIClient.sendMessage(
       systemMessage,
       message,
+      userProfile.messageHistory,
     );
 
     const yesRegex = /\byes\b/i; // \b ensures word boundaries, i makes it case-insensitive
@@ -153,7 +157,11 @@ export class MessageHandler {
       randomTeacher: randomTeacher,
       answerLength: answerLength,
     });
-    return await this.openAIClient.sendMessage(systemMessage, message);
+    return await this.openAIClient.sendMessage(
+      systemMessage,
+      message,
+      userProfile.messageHistory,
+    );
   };
 
   enhanceSummary = async (
@@ -174,23 +182,20 @@ export class MessageHandler {
 
   updateMessageHistory = (
     profile: UserProfile,
-    role: 'user' | 'bot',
+    role: StandardRoles,
     newMessage: string,
   ): void => {
-    profile.messageHistory.push(`${role}: ${newMessage}`);
-
-    // Keep only the last 10 messages
-    if (profile.messageHistory.length > MESSAGES_HISTORY_LENGTH) {
-      profile.messageHistory.shift();
-    }
-
     const message: Message = {
       id: uuidv4(),
       userId: profile.id,
       role: role,
       timestamp: new Date(),
-      content: newMessage,
+      message: newMessage,
     };
+    profile.messageHistory.push(message);
+    if (profile.messageHistory.length > MESSAGES_HISTORY_LENGTH) {
+      profile.messageHistory.shift();
+    }
 
     this.userStore.addMessage(message);
   };

@@ -4,7 +4,7 @@ export interface UserProfile {
   username?: string;
   personalDetails: PersonalDetails;
   conversationSummary?: string;
-  messageHistory: string[];
+  messageHistory: Message[];
   language: 'en-US' | 'heb';
   satisfactionLevel: Rating[];
 }
@@ -40,7 +40,14 @@ export interface PersonalDetails {
 export interface Message {
   id: string;
   userId: string;
-  role: 'user' | 'bot';
+  role: StandardRoles;
   timestamp: Date;
-  content: string;
+  message: string;
+}
+
+export enum StandardRoles {
+  system = 'SYSTEM',
+  user = 'USER',
+  assistant = 'CHATBOT',
+  tool = 'TOOL',
 }
