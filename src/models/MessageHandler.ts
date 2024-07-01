@@ -10,7 +10,7 @@ import { getPrompt } from '../prompts/PromptsLoader';
 import { gzipSync } from 'zlib';
 import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
-import { RatingSelector } from '../TelegramCommands/ratingSelector';
+import { RatingSelector } from '../TelegramBot/ratingSelector';
 import { createSatisfactionLevelSelector } from './SatisfactioLevelSelector';
 
 const MESSAGES_HISTORY_LENGTH = 20;

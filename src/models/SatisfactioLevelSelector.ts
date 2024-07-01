@@ -1,7 +1,7 @@
 import {
   RatingSelector,
   SetSelectionCallback,
-} from '../TelegramCommands/ratingSelector';
+} from '../TelegramBot/ratingSelector';
 import {
   FriendlySatisfactionLevel,
   Rating,
