@@ -1,6 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
-import express, { Request, Response } from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import fs from 'fs';
 import { exportMessageHistoryToCsv } from './user/MessageHistoryExporter';
 import { initializeBot } from './TelegramBot/Bot';
@@ -14,26 +14,26 @@ app.get('/', (req: Request, res: Response) => {
 });
 
 // Middleware to secure the endpoint
-// app.use((req, res, next) => {
-//   const auth = {
-//     login: process.env.ADMIN_USER!,
-//     password: process.env.ADMIN_PASSWORD!,
-//   };
+const secureMiddleware = (req: Request, res: Response, next: NextFunction) => {
+  const auth = {
+    login: process.env.ADMIN_USER!,
+    password: process.env.ADMIN_PASSWORD!,
+  };
 
-//   const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
-//   const [login, password] = Buffer.from(b64auth, 'base64')
-//     .toString()
-//     .split(':');
+  const b64auth = (req.headers.authorization || '').split(' ')[1] || '';
+  const [login, password] = Buffer.from(b64auth, 'base64')
+    .toString()
+    .split(':');
 
-//   if (login && password && login === auth.login && password === auth.password) {
-//     return next();
-//   }
+  if (login && password && login === auth.login && password === auth.password) {
+    return next();
+  }
 
-//   res.set('WWW-Authenticate', 'Basic realm="401"');
-//   res.status(401).send('Authentication required.');
-// });
+  res.set('WWW-Authenticate', 'Basic realm="401"');
+  res.status(401).send('Authentication required.');
+};
 
-app.get('/export', async (req: Request, res: Response) => {
+app.get('/export', secureMiddleware, async (req: Request, res: Response) => {
   try {
     const csvPath = await exportMessageHistoryToCsv();
     res.download(csvPath, (err) => {
