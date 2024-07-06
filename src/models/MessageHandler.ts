@@ -16,7 +16,48 @@ import { createSatisfactionLevelSelector } from './SatisfactioLevelSelector';
 import CohereApi from '../providers/CohereApi';
 
 const MESSAGES_HISTORY_LENGTH = 20;
+// const updateDetails = (
+//   userProfile: UserProfile,
+//   ctx: UserContext,
+//   userMessage: string,
+//   role: string,
+// ) => {
+//   const personalDetails: PersonalDetails = {
+//     firstName: ctx.firstName,
+//     lastName: ctx.lastName,
+//   };
+//   userProfile = {
+//     ...userProfile,
+//     personalDetails: personalDetails,
+//     username: ctx.username,
+//   };
+// };
+// const updateMessageHistory = (
+//   profile: UserProfile,
+//   role: StandardRoles,
+//   newMessage: string,
+//   userStore: UserStore,
+// ): void => {
+//   const message: Message = {
+//     id: uuidv4(),
+//     userId: profile.id,
+//     role: role,
+//     timestamp: new Date(),
+//     message: newMessage,
+//   };
+//   profile.messageHistory.push(message);
+//   if (profile.messageHistory.length > MESSAGES_HISTORY_LENGTH) {
+//     profile.messageHistory.shift();
+//   }
+//   userStore.addMessage(message);
+// };
 
+// export { updateDetails, updateMessageHistory };
+export interface RespondToUserData {
+  userProfile: string;
+  randomTeacher: string;
+  answerLength: number;
+}
 export class MessageHandler {
   userStore: UserStore;
   ratingSelector: RatingSelector;
@@ -28,23 +69,21 @@ export class MessageHandler {
     this.openAIClient = new OpenAIClient();
     //this.openAIClient = new CohereApi();
   }
-
   handleMessage = async (
     userId: string,
     userMessage: string,
     ctx: UserContext,
   ): Promise<string> => {
     let userProfile = await this.userStore.getUser(userId);
-    this.updateMessageHistory(userProfile, StandardRoles.user, userMessage);
-    const personalDetails: PersonalDetails = {
-      firstName: ctx.firstName,
-      lastName: ctx.lastName,
-    };
-    userProfile = {
-      ...userProfile,
-      personalDetails: personalDetails,
-      username: ctx.username,
-    };
+    userProfile = MessageHandler.updatePersonalDetailes(ctx, userProfile);
+    await MessageHandler.updateMessageHistory(
+      userProfile,
+      StandardRoles.user,
+      userMessage,
+      this.userStore,
+    );
+    console.log('messege handler');
+    // updateDetails(userProfile, ctx, userMessage, StandardRoles.user);
 
     // Stage 1: Check if message is in the context of spiritual journey or personal growth.
     const isMessageInContext = await this.isMessageInChatContext(
@@ -61,7 +100,12 @@ export class MessageHandler {
     //await createSatisfactionLevelSelector(this.userStore, this.ratingSelector);
     const botReply = await this.respondToUser(userProfile, userMessage);
 
-    this.updateMessageHistory(userProfile, StandardRoles.assistant, botReply);
+    MessageHandler.updateMessageHistory(
+      userProfile,
+      StandardRoles.assistant,
+      botReply,
+      this.userStore,
+    );
     this.enhanceSummary(userProfile, userMessage, botReply);
     return botReply;
   };
@@ -70,7 +114,7 @@ export class MessageHandler {
     userProfile: UserProfile,
     message: string,
   ): Promise<boolean> => {
-    const userProfileString = this.compressMessage(JSON.stringify(userProfile));
+    const userProfileString = JSON.stringify(userProfile);
     const systemMessage = getPrompt('isMessageInChatContext', {
       userProfile: userProfileString,
     });
@@ -90,7 +134,7 @@ export class MessageHandler {
     } else {
       console.log('The bot did not return yes or no!');
     }
-
+    console.log(result);
     console.log('isMessageInChatContext:', result);
     return result;
   };
@@ -123,7 +167,7 @@ export class MessageHandler {
     return botResponse;
   };
 
-  getRandomNumber(min: number, max: number): number {
+  static getRandomNumber(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
@@ -133,30 +177,31 @@ export class MessageHandler {
   ): Promise<string> => {
     // Forward the message to OpenAI and get a response
     const userProfileString = JSON.stringify(userProfile);
-    const teachers = [
-      'Eckhart Tolle',
-      'Thich Nhat Hanh',
-      'Ram Dass',
-      'Deepak Chopra',
-      'Paramahansa Yogananda',
-      'Jiddu Krishnamurti',
-      'Mooji',
-      'Osho',
-      'Pema Chödrön',
-      'Adyashanti',
-      'Byron Katie',
-      'Sadhguru',
-      'Rumi',
-      'Nisargadatta Maharaj',
-      'Laozi',
-    ];
-    const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];
-    const answerLength = this.getRandomNumber(200, 400);
-    const systemMessage = getPrompt('respondToUser', {
-      userProfile: userProfileString,
-      randomTeacher: randomTeacher,
-      answerLength: answerLength,
-    });
+    // const teachers = [
+    //   'Eckhart Tolle',
+    //   'Thich Nhat Hanh',
+    //   'Ram Dass',
+    //   'Deepak Chopra',
+    //   'Paramahansa Yogananda',
+    //   'Jiddu Krishnamurti',
+    //   'Mooji',
+    //   'Osho',
+    //   'Pema Chödrön',
+    //   'Adyashanti',
+    //   'Byron Katie',
+    //   'Sadhguru',
+    //   'Rumi',
+    //   'Nisargadatta Maharaj',
+    //   'Laozi',
+    // ];
+    // const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];
+    // const answerLength = this.getRandomNumber(200, 400);
+    const systemMessage = getPrompt(
+      'respondToUser',
+      MessageHandler.getRespondToUserData(userProfileString),
+    );
+    console.log(userProfile);
+    console.log(await this.userStore.getUser(userProfile.id));
     return await this.openAIClient.sendMessage(
       systemMessage,
       message,
@@ -180,10 +225,11 @@ export class MessageHandler {
     this.userStore.saveUser(profile);
   };
 
-  updateMessageHistory = (
+  static updateMessageHistory = (
     profile: UserProfile,
     role: StandardRoles,
     newMessage: string,
+    userStore: UserStore,
   ): void => {
     const message: Message = {
       id: uuidv4(),
@@ -197,7 +243,45 @@ export class MessageHandler {
       profile.messageHistory.shift();
     }
 
-    this.userStore.addMessage(message);
+    userStore.addMessage(message);
+  };
+  static updatePersonalDetailes = (
+    userCtx: UserContext,
+    userProfile: UserProfile,
+  ): UserProfile => {
+    const personalDetails: PersonalDetails = {
+      firstName: userCtx.firstName,
+      lastName: userCtx.lastName,
+    };
+    return {
+      ...userProfile,
+      personalDetails: personalDetails,
+      username: userCtx.username,
+    };
+  };
+  static getRespondToUserData = (userProfile: string): RespondToUserData => {
+    const teachers = [
+      'Eckhart Tolle',
+      'Thich Nhat Hanh',
+      'Ram Dass',
+      'Deepak Chopra',
+      'Paramahansa Yogananda',
+      'Jiddu Krishnamurti',
+      'Mooji',
+      'Osho',
+      'Pema Chödrön',
+      'Adyashanti',
+      'Byron Katie',
+      'Sadhguru',
+      'Rumi',
+      'Nisargadatta Maharaj',
+      'Laozi',
+    ];
+    return {
+      randomTeacher: teachers[Math.floor(Math.random() * teachers.length)],
+      answerLength: MessageHandler.getRandomNumber(200, 400),
+      userProfile: userProfile,
+    };
   };
 
   compressMessage = (input: string): string => {
