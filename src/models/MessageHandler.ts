@@ -53,7 +53,7 @@ const MESSAGES_HISTORY_LENGTH = 20;
 // };
 
 // export { updateDetails, updateMessageHistory };
-export interface RespondToUserData {
+export interface MessageData {
   userProfile: string;
   randomTeacher: string;
   answerLength: number;
@@ -198,7 +198,7 @@ export class MessageHandler {
     // const answerLength = this.getRandomNumber(200, 400);
     const systemMessage = getPrompt(
       'respondToUser',
-      MessageHandler.getRespondToUserData(userProfileString),
+      MessageHandler.getMessageData(userProfileString),
     );
     console.log(userProfile);
     console.log(await this.userStore.getUser(userProfile.id));
@@ -259,7 +259,7 @@ export class MessageHandler {
       username: userCtx.username,
     };
   };
-  static getRespondToUserData = (userProfile: string): RespondToUserData => {
+  static getMessageData = (userProfile: string): MessageData => {
     const teachers = [
       'Eckhart Tolle',
       'Thich Nhat Hanh',

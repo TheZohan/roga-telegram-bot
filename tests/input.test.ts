@@ -1,8 +1,5 @@
 import { mock } from 'ts-jest-mocker';
-import {
-  MessageHandler,
-  RespondToUserData,
-} from '../src/models/MessageHandler';
+import { MessageHandler, MessageData } from '../src/models/MessageHandler';
 import { RatingSelector } from '../src/TelegramBot/ratingSelector';
 import { UserStore } from '../src/user/UserStore';
 import {
@@ -24,7 +21,7 @@ interface Responses {
 let responses: Responses;
 let userProfile: UserProfile;
 const originalUpdateMessageHistory = MessageHandler.updateMessageHistory;
-const handleMessegeMock = jest
+const updateMessageHistoryMock = jest
   .spyOn(MessageHandler, 'updateMessageHistory')
   .mockImplementation(
     (profile: UserProfile, role: StandardRoles, newMessage: string) => {
@@ -33,10 +30,10 @@ const handleMessegeMock = jest
       setContextResponeses(responses, userCtx);
     },
   );
-const originalgetResponedToUserData = MessageHandler.getRespondToUserData;
-const getRespondToUserDataMock = jest
-  .spyOn(MessageHandler, 'getRespondToUserData')
-  .mockImplementation((string: string): RespondToUserData => {
+const originalgetResponedToUserData = MessageHandler.getMessageData;
+const getMessageDataMock = jest
+  .spyOn(MessageHandler, 'getMessageData')
+  .mockImplementation((string: string): MessageData => {
     console.log('get data mocked succesfully');
     const data = originalgetResponedToUserData(string);
     setResponsesToUser(responses, userCtx, data, userProfile);
@@ -107,7 +104,7 @@ const setContextResponeses = async (
 const setResponsesToUser = async (
   responses: Responses,
   userCtx: UserContext,
-  resToUserData: RespondToUserData,
+  resToUserData: MessageData,
   userProfile: UserProfile,
 ) => {
   const responedToUserPrompt = getPrompt('respondToUser', resToUserData);
@@ -125,7 +122,7 @@ describe('basic tests', () => {
       is_bot: false,
       username: 'yogev',
       personalDetails: {},
-      conversationSummary: 'yogev',
+      conversationSummary: '',
       messageHistory: [],
       language: 'en-US',
       satisfactionLevel: [],
