@@ -16,43 +16,7 @@ import { createSatisfactionLevelSelector } from './SatisfactioLevelSelector';
 import CohereApi from '../providers/CohereApi';
 
 const MESSAGES_HISTORY_LENGTH = 20;
-// const updateDetails = (
-//   userProfile: UserProfile,
-//   ctx: UserContext,
-//   userMessage: string,
-//   role: string,
-// ) => {
-//   const personalDetails: PersonalDetails = {
-//     firstName: ctx.firstName,
-//     lastName: ctx.lastName,
-//   };
-//   userProfile = {
-//     ...userProfile,
-//     personalDetails: personalDetails,
-//     username: ctx.username,
-//   };
-// };
-// const updateMessageHistory = (
-//   profile: UserProfile,
-//   role: StandardRoles,
-//   newMessage: string,
-//   userStore: UserStore,
-// ): void => {
-//   const message: Message = {
-//     id: uuidv4(),
-//     userId: profile.id,
-//     role: role,
-//     timestamp: new Date(),
-//     message: newMessage,
-//   };
-//   profile.messageHistory.push(message);
-//   if (profile.messageHistory.length > MESSAGES_HISTORY_LENGTH) {
-//     profile.messageHistory.shift();
-//   }
-//   userStore.addMessage(message);
-// };
 
-// export { updateDetails, updateMessageHistory };
 export interface MessageData {
   userProfile: string;
   randomTeacher: string;
@@ -75,13 +39,16 @@ export class MessageHandler {
     ctx: UserContext,
   ): Promise<string> => {
     let userProfile = await this.userStore.getUser(userId);
-    userProfile = MessageHandler.updatePersonalDetailes(ctx, userProfile);
-    await MessageHandler.updateMessageHistory(
-      userProfile,
-      StandardRoles.user,
-      userMessage,
-      this.userStore,
-    );
+    const personalDetails: PersonalDetails = {
+      firstName: ctx.firstName,
+      lastName: ctx.lastName,
+    };
+    userProfile = {
+      ...userProfile,
+      personalDetails: personalDetails,
+      username: ctx.username,
+    };
+    this.updateMessageHistory(userProfile, StandardRoles.user, userMessage);
     console.log('messege handler');
     // updateDetails(userProfile, ctx, userMessage, StandardRoles.user);
 
@@ -100,12 +67,7 @@ export class MessageHandler {
     //await createSatisfactionLevelSelector(this.userStore, this.ratingSelector);
     const botReply = await this.respondToUser(userProfile, userMessage);
 
-    MessageHandler.updateMessageHistory(
-      userProfile,
-      StandardRoles.assistant,
-      botReply,
-      this.userStore,
-    );
+    this.updateMessageHistory(userProfile, StandardRoles.assistant, botReply);
     this.enhanceSummary(userProfile, userMessage, botReply);
     return botReply;
   };
@@ -167,7 +129,7 @@ export class MessageHandler {
     return botResponse;
   };
 
-  static getRandomNumber(min: number, max: number): number {
+  getRandomNumber(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
@@ -177,29 +139,30 @@ export class MessageHandler {
   ): Promise<string> => {
     // Forward the message to OpenAI and get a response
     const userProfileString = JSON.stringify(userProfile);
-    // const teachers = [
-    //   'Eckhart Tolle',
-    //   'Thich Nhat Hanh',
-    //   'Ram Dass',
-    //   'Deepak Chopra',
-    //   'Paramahansa Yogananda',
-    //   'Jiddu Krishnamurti',
-    //   'Mooji',
-    //   'Osho',
-    //   'Pema Chödrön',
-    //   'Adyashanti',
-    //   'Byron Katie',
-    //   'Sadhguru',
-    //   'Rumi',
-    //   'Nisargadatta Maharaj',
-    //   'Laozi',
-    // ];
-    // const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];
-    // const answerLength = this.getRandomNumber(200, 400);
-    const systemMessage = getPrompt(
-      'respondToUser',
-      MessageHandler.getMessageData(userProfileString),
-    );
+    const teachers = [
+      'Eckhart Tolle',
+      'Thich Nhat Hanh',
+      'Ram Dass',
+      'Deepak Chopra',
+      'Paramahansa Yogananda',
+      'Jiddu Krishnamurti',
+      'Mooji',
+      'Osho',
+      'Pema Chödrön',
+      'Adyashanti',
+      'Byron Katie',
+      'Sadhguru',
+      'Rumi',
+      'Nisargadatta Maharaj',
+      'Laozi',
+    ];
+    const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];
+    const answerLength = this.getRandomNumber(200, 400);
+    const systemMessage = getPrompt('respondToUser', {
+      userProfile: userProfileString,
+      randomTeacher: randomTeacher,
+      answerLength: answerLength,
+    });
     console.log(userProfile);
     console.log(await this.userStore.getUser(userProfile.id));
     return await this.openAIClient.sendMessage(
@@ -225,11 +188,10 @@ export class MessageHandler {
     this.userStore.saveUser(profile);
   };
 
-  static updateMessageHistory = (
+  updateMessageHistory = (
     profile: UserProfile,
     role: StandardRoles,
     newMessage: string,
-    userStore: UserStore,
   ): void => {
     const message: Message = {
       id: uuidv4(),
@@ -243,47 +205,8 @@ export class MessageHandler {
       profile.messageHistory.shift();
     }
 
-    userStore.addMessage(message);
+    this.userStore.addMessage(message);
   };
-  static updatePersonalDetailes = (
-    userCtx: UserContext,
-    userProfile: UserProfile,
-  ): UserProfile => {
-    const personalDetails: PersonalDetails = {
-      firstName: userCtx.firstName,
-      lastName: userCtx.lastName,
-    };
-    return {
-      ...userProfile,
-      personalDetails: personalDetails,
-      username: userCtx.username,
-    };
-  };
-  static getMessageData = (userProfile: string): MessageData => {
-    const teachers = [
-      'Eckhart Tolle',
-      'Thich Nhat Hanh',
-      'Ram Dass',
-      'Deepak Chopra',
-      'Paramahansa Yogananda',
-      'Jiddu Krishnamurti',
-      'Mooji',
-      'Osho',
-      'Pema Chödrön',
-      'Adyashanti',
-      'Byron Katie',
-      'Sadhguru',
-      'Rumi',
-      'Nisargadatta Maharaj',
-      'Laozi',
-    ];
-    return {
-      randomTeacher: teachers[Math.floor(Math.random() * teachers.length)],
-      answerLength: MessageHandler.getRandomNumber(200, 400),
-      userProfile: userProfile,
-    };
-  };
-
   compressMessage = (input: string): string => {
     try {
       // Convert the input string to a buffer using UTF-8 encoding
