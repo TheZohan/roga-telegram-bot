@@ -15,10 +15,6 @@ interface Responses {
   summery: string;
 }
 
-const ratingSelector = mock<RatingSelector>();
-const userStore: UserStore = new MemoryUserStore();
-const messageHandler = new MessageHandler(userStore, ratingSelector);
-
 const openAIClientMock: OpenAIMock = new OpenAIMock();
 jest.mock('../src/providers/OpenAICLient', () => {
   return {
@@ -71,6 +67,11 @@ const setResponses = async (responses: Responses, user: UserProfile) => {
   }
 };
 
+// create message handler
+const ratingSelector = mock<RatingSelector>();
+const userStore: UserStore = new MemoryUserStore();
+const messageHandler = new MessageHandler(userStore, ratingSelector);
+
 // Example test using the mocked provider
 describe('basic tests', () => {
   let responses: Responses;
@@ -98,7 +99,8 @@ describe('basic tests', () => {
       userMessage: 'Hi',
       botMessage: 'Hello! How can I help you today?',
       inContext: true,
-      summery: 'The user said hi and I responded with hello how can I help you today',
+      summery:
+        'The user said hi and I responded with hello how can I help you today',
     };
     setResponses(responses, userProfile);
     expect(
