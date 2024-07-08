@@ -26,7 +26,11 @@ export const initializeBot = async () => {
   });
 
   bot.start(async (ctx) => {
-    ctx.reply(i18n.t('greeting'));
+    const userId: string = ctx.from?.id.toString();
+    const ratingSelector = new RatingSelector(bot, ctx);
+    const messageHandler = new MessageHandler(userStore, ratingSelector);
+    const greeting = await messageHandler.greetTheUser(userId);
+    ctx.reply(greeting);
   });
 
   bot.help((ctx) => {
@@ -59,13 +63,15 @@ export const initializeBot = async () => {
         };
 
         const ratingSelector = new RatingSelector(bot, ctx);
-        const messageAnalyzer = new MessageHandler(userStore, ratingSelector);
-        const botReply = await messageAnalyzer.handleMessage(
+        const messageHandler = new MessageHandler(userStore, ratingSelector);
+        const botReply = await messageHandler.handleMessage(
           userId,
           userMessage,
           userContext,
         );
-        await ctx.reply(botReply);
+        if (botReply) {
+          await ctx.reply(botReply);
+        }
       } catch (error) {
         console.log(error);
         const message = JSON.stringify(

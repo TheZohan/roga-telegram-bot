@@ -1,5 +1,5 @@
 import { Context, Markup, Telegraf } from 'telegraf';
-import { UserProfile } from '../user/UserProfile';
+import { Language, UserProfile } from '../user/UserProfile';
 import { UserStore } from '../user/UserStore';
 
 export const setLanguageCommand = async (
@@ -23,7 +23,7 @@ export const setLanguageCommand = async (
       const userProfile: UserProfile = await userStore.getUser(
         ctx.from?.id.toString(),
       );
-      userProfile.language = 'en-US';
+      userProfile.language = Language.enUS;
       ctx.answerCbQuery('Language set to English.');
       ctx.reply('Language set to English.');
     }
@@ -34,7 +34,7 @@ export const setLanguageCommand = async (
       const userProfile: UserProfile = await userStore.getUser(
         ctx.from?.id.toString(),
       );
-      userProfile.language = 'heb';
+      userProfile.language = Language.heb;
       ctx.answerCbQuery('השפה נקבעה לעברית.');
       ctx.reply('השפה נקבעה לעברית.');
     }

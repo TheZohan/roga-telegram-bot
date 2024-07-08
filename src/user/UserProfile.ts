@@ -5,8 +5,14 @@ export interface UserProfile {
   personalDetails: PersonalDetails;
   conversationSummary?: string;
   messageHistory: Message[];
-  language: 'en-US' | 'heb';
+  language: Language;
   satisfactionLevel: Rating[];
+  lastTimeAskedForSatisfactionLevel?: Date;
+}
+
+export enum Language {
+  heb = 'Hebrew',
+  enUS = 'English',
 }
 
 export enum FriendlySatisfactionLevel {
