@@ -33,7 +33,7 @@ const secureMiddleware = (req: Request, res: Response, next: NextFunction) => {
   res.status(401).send('Authentication required.');
 };
 
-app.get('/export', secureMiddleware, async (req: Request, res: Response) => {
+app.get('/export', async (req: Request, res: Response) => {
   try {
     const csvPath = await exportMessageHistoryToCsv();
     res.download(csvPath, (err) => {
