@@ -24,7 +24,10 @@ class RedisUserStore {
       },
     });
 
-    this.client.on('error', (err) => console.error('Redis Client Error', err));
+    this.client.on('error', (err) => {
+      console.error('Redis Client Error', err);
+      throw new Error("Couldn't connect to Redis");
+    });
   }
 
   async connect(): Promise<void> {
