@@ -1,4 +1,4 @@
-import { Message, UserProfile } from './UserProfile';
+import { Language, Message, UserProfile } from './UserProfile';
 import { UserStore } from './UserStore';
 
 export class MemoryUserStore implements UserStore {
@@ -17,7 +17,7 @@ export class MemoryUserStore implements UserStore {
         messageHistory: [],
         satisfactionLevel: [],
         personalDetails: {},
-        language: 'en-US',
+        language: Language.heb,
       } as UserProfile)
     );
   }

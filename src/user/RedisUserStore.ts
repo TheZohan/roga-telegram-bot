@@ -1,6 +1,6 @@
 import { createClient, RedisClientType } from 'redis';
 import { UserStore } from './UserStore';
-import { Message, UserProfile } from './UserProfile';
+import { Language, Message, UserProfile } from './UserProfile';
 
 const MAX_HISTORY = 10; // Default max history
 
@@ -41,7 +41,7 @@ export class RedisUserStore implements UserStore {
           messageHistory: [],
           satisfactionLevel: [],
           personalDetails: {},
-          language: 'en-US',
+          language: Language.heb,
         } as UserProfile);
   }
 

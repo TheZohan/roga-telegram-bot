@@ -6,13 +6,17 @@ import {
   PersonalDetails,
   Message,
   StandardRoles,
+  Language,
 } from '../user/UserProfile';
 import { getPrompt } from '../prompts/PromptsLoader';
 import { gzipSync } from 'zlib';
 import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
-import { createSatisfactionLevelSelector } from './SatisfactioLevelSelector';
+import {
+  createSatisfactionLevelSelector,
+  shouldAskForSatisfactionLevel,
+} from './SatisfactioLevelSelector';
 import CohereApi from '../providers/CohereApi';
 
 const MESSAGES_HISTORY_LENGTH = 20;
@@ -33,6 +37,24 @@ export class MessageHandler {
     this.openAIClient = new OpenAIClient();
     //this.openAIClient = new CohereApi();
   }
+
+  greetTheUser = async (userId: string): Promise<string> => {
+    const userProfile: UserProfile = await this.userStore.getUser(userId);
+    const userProfileString = this.compressMessage(JSON.stringify(userProfile));
+    const defaultLanguage: keyof typeof Language = process.env
+      .LANGUAGE! as keyof typeof Language;
+    const language: string = Language[defaultLanguage];
+    console.log('Language', language);
+    const systemMessage = getPrompt('greeting', {
+      langauge: language,
+      userProfile: userProfileString,
+    });
+    const response = await this.openAIClient.sendMessage(systemMessage, '');
+    this.updateMessageHistory(userProfile, StandardRoles.assistant, response);
+    this.userStore.saveUser(userProfile);
+    return response;
+  };
+
   handleMessage = async (
     userId: string,
     userMessage: string,
@@ -64,9 +86,15 @@ export class MessageHandler {
       );
     }
 
-    //await createSatisfactionLevelSelector(this.userStore, this.ratingSelector);
+    if (shouldAskForSatisfactionLevel(userProfile)) {
+      await createSatisfactionLevelSelector(
+        this.userStore,
+        this.ratingSelector,
+      );
+      userProfile.lastTimeAskedForSatisfactionLevel = new Date();
+      this.userStore.saveUser(userProfile);
+    }
     const botReply = await this.respondToUser(userProfile, userMessage);
-
     this.updateMessageHistory(userProfile, StandardRoles.assistant, botReply);
     this.enhanceSummary(userProfile, userMessage, botReply);
     return botReply;

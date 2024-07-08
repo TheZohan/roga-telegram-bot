@@ -9,6 +9,26 @@ import {
 } from '../user/UserProfile';
 import { UserStore } from '../user/UserStore';
 
+export function shouldAskForSatisfactionLevel(
+  userProfile: UserProfile,
+): boolean {
+  // Calculate the time difference
+  const now = new Date();
+  if (userProfile.lastTimeAskedForSatisfactionLevel) {
+    const timeDifference =
+      now.getTime() -
+      new Date(userProfile.lastTimeAskedForSatisfactionLevel).getTime();
+
+    // Convert time difference to hours
+    const hoursDifference = timeDifference / (1000 * 60 * 60);
+
+    // Check if the difference is more than 24 hours
+    return hoursDifference > 24;
+  } else {
+    return true;
+  }
+}
+
 export const createSatisfactionLevelSelector = async (
   userStore: UserStore,
   ratingSelector: RatingSelector,
@@ -42,7 +62,7 @@ export const createSatisfactionLevelSelector = async (
   };
   ratingSelector.createSelector(
     'satisfactionLevel',
-    'How satisfied are you from your life right now?',
+    'How are you doing today?',
     satisfactionLevels,
     setRatingCallback,
   );
