@@ -24,7 +24,10 @@ class RedisUserStore {
       },
     });
 
-    this.client.on('error', (err) => console.error('Redis Client Error', err));
+    this.client.on('error', (err) => {
+      console.error('Redis Client Error', err);
+      throw new Error("Couldn't connect to Redis");
+    });
   }
 
   async connect(): Promise<void> {
@@ -50,8 +53,8 @@ class RedisUserStore {
 }
 
 export const exportMessageHistoryToCsv = async (): Promise<string> => {
-  const redisHost = 'localhost';
-  const redisPort = 6379;
+  const redisHost = process.env.REDISHOST!;
+  const redisPort = +process.env.REDISPORT!;
   const redisStore = new RedisUserStore(redisHost, redisPort);
 
   try {
