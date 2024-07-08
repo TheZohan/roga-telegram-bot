@@ -7,7 +7,6 @@ import * as PromptsLoader from '../src/prompts/PromptsLoader';
 import { getPrompt } from '../src/prompts/PromptsLoader';
 import { OpenAIMock, createInput } from './OpenAiMock';
 import { MemoryUserStore } from '../src/user/MemoryUserStore';
-
 interface Responses {
   userMessage: string;
   botMessage: string;
@@ -16,7 +15,7 @@ interface Responses {
 }
 
 const openAIClientMock: OpenAIMock = new OpenAIMock();
-jest.mock('../src/providers/OpenAICLient', () => {
+jest.mock('../src/providers/OpenAIClient', () => {
   return {
     OpenAIClient: jest.fn().mockImplementation(() => {
       return openAIClientMock;
