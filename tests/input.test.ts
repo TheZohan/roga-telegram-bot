@@ -2,7 +2,7 @@ import { mock } from 'ts-jest-mocker';
 import { MessageHandler } from '../src/models/MessageHandler';
 import { RatingSelector } from '../src/TelegramBot/ratingSelector';
 import { UserStore } from '../src/user/UserStore';
-import { UserContext, UserProfile } from '../src/user/UserProfile';
+import { Language, UserContext, UserProfile } from '../src/user/UserProfile';
 import * as PromptsLoader from '../src/prompts/PromptsLoader';
 import { getPrompt } from '../src/prompts/PromptsLoader';
 import { OpenAIMock, createInput } from './OpenAiMock';
@@ -81,8 +81,9 @@ describe('basic tests', () => {
     personalDetails: {},
     conversationSummary: '',
     messageHistory: [],
-    language: 'en-US',
+    language: Language.enUS,
     satisfactionLevel: [],
+    lastTimeAskedForSatisfactionLevel: new Date(),
   };
   userStore.saveUser(userProfile);
   const userCtx: UserContext = {
