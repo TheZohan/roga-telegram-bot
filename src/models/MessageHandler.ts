@@ -17,6 +17,11 @@ import CohereApi from '../providers/CohereApi';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
+export interface MessageData {
+  userProfile: string;
+  randomTeacher: string;
+  answerLength: number;
+}
 export class MessageHandler {
   userStore: UserStore;
   ratingSelector: RatingSelector;
@@ -28,14 +33,12 @@ export class MessageHandler {
     this.openAIClient = new OpenAIClient();
     //this.openAIClient = new CohereApi();
   }
-
   handleMessage = async (
     userId: string,
     userMessage: string,
     ctx: UserContext,
   ): Promise<string> => {
     let userProfile = await this.userStore.getUser(userId);
-    this.updateMessageHistory(userProfile, StandardRoles.user, userMessage);
     const personalDetails: PersonalDetails = {
       firstName: ctx.firstName,
       lastName: ctx.lastName,
@@ -45,6 +48,9 @@ export class MessageHandler {
       personalDetails: personalDetails,
       username: ctx.username,
     };
+    this.updateMessageHistory(userProfile, StandardRoles.user, userMessage);
+    console.log('messege handler');
+    // updateDetails(userProfile, ctx, userMessage, StandardRoles.user);
 
     // Stage 1: Check if message is in the context of spiritual journey or personal growth.
     const isMessageInContext = await this.isMessageInChatContext(
@@ -70,7 +76,7 @@ export class MessageHandler {
     userProfile: UserProfile,
     message: string,
   ): Promise<boolean> => {
-    const userProfileString = this.compressMessage(JSON.stringify(userProfile));
+    const userProfileString = JSON.stringify(userProfile);
     const systemMessage = getPrompt('isMessageInChatContext', {
       userProfile: userProfileString,
     });
@@ -90,7 +96,7 @@ export class MessageHandler {
     } else {
       console.log('The bot did not return yes or no!');
     }
-
+    console.log(result);
     console.log('isMessageInChatContext:', result);
     return result;
   };
@@ -157,6 +163,8 @@ export class MessageHandler {
       randomTeacher: randomTeacher,
       answerLength: answerLength,
     });
+    console.log(userProfile);
+    console.log(await this.userStore.getUser(userProfile.id));
     return await this.openAIClient.sendMessage(
       systemMessage,
       message,
@@ -199,7 +207,6 @@ export class MessageHandler {
 
     this.userStore.addMessage(message);
   };
-
   compressMessage = (input: string): string => {
     try {
       // Convert the input string to a buffer using UTF-8 encoding
