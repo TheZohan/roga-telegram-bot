@@ -1,13 +1,17 @@
+import { Context } from 'telegraf';
 import {
   RatingSelector,
   SetSelectionCallback,
 } from '../TelegramBot/ratingSelector';
 import {
   FriendlySatisfactionLevel,
+  FriendlySatisfactionLevelTranslationKeys,
   Rating,
   UserProfile,
 } from '../user/UserProfile';
 import { UserStore } from '../user/UserStore';
+import { MessageHandler } from './MessageHandler';
+import i18n from '../il18n';
 
 export function shouldAskForSatisfactionLevel(
   userProfile: UserProfile,
@@ -30,10 +34,19 @@ export function shouldAskForSatisfactionLevel(
 }
 
 export const createSatisfactionLevelSelector = async (
+  messageHandler: MessageHandler,
   userStore: UserStore,
   ratingSelector: RatingSelector,
 ): Promise<void> => {
-  const satisfactionLevels = Object.values(FriendlySatisfactionLevel);
+  const satisfactionLevels = Object.values(FriendlySatisfactionLevel).map(
+    (level) => {
+      return i18n.t(
+        FriendlySatisfactionLevelTranslationKeys[
+          level as keyof typeof FriendlySatisfactionLevel
+        ],
+      );
+    },
+  );
   const satisfactionMapping = satisfactionLevels.map((level, index) => ({
     level,
     value: index + 1,
@@ -42,6 +55,7 @@ export const createSatisfactionLevelSelector = async (
   const setRatingCallback: SetSelectionCallback = async (
     level: string,
     userId: string,
+    ctx: Context,
   ) => {
     console.log('Setting level for user', userId);
     const mapping = satisfactionMapping.find((m) => m.level === level);
@@ -59,10 +73,20 @@ export const createSatisfactionLevelSelector = async (
     }
     userProfile.satisfactionLevel.push(ratingObj);
     userStore.saveUser(userProfile);
+    ctx.reply(
+      await messageHandler.handleMessage(
+        userId,
+        i18n.t(
+          FriendlySatisfactionLevelTranslationKeys[
+            level as keyof typeof FriendlySatisfactionLevel
+          ],
+        ),
+      ),
+    );
   };
   ratingSelector.createSelector(
     'satisfactionLevel',
-    'How are you doing today?',
+    i18n.t('askForSatisfactionLevel'),
     satisfactionLevels,
     setRatingCallback,
   );

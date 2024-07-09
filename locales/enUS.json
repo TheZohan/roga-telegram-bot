@@ -1,5 +1,13 @@
 {
-    "greeting": "Hey there, great to meet you! I'm Roga, your personal spiritual guide. My goal is to support you on your life's journey. Feel free to ask for advice, seek answers, or just share what's on your mind. How's your day going so far?",
-    "helpMessage": "You can share with me your journey in life. I will be there for you and assit you along your path by lighting up the darker areas of your way"
+    "helpMessage": "You can share with me your journey in life. I will be there for you and assit you along your path by lighting up the darker areas of your way",
+    "askForSatisfactionLevel": "How are you doing today?",
+    "FriendlySatisfactionLevel": {
+      "Awful": "Awful",
+      "Bad": "Bad",
+      "Meh": "Meh",
+      "Good": "Good",
+      "Great": "Great",
+      "Template": "I am feeling {{level}}"
+    }
   }
   

@@ -3,7 +3,6 @@ import { LLMProvider } from '../providers/LlmProvider';
 import {
   UserContext,
   UserProfile,
-  PersonalDetails,
   Message,
   StandardRoles,
   Language,
@@ -58,18 +57,19 @@ export class MessageHandler {
   handleMessage = async (
     userId: string,
     userMessage: string,
-    ctx: UserContext,
+    ctx?: UserContext,
   ): Promise<string> => {
     let userProfile = await this.userStore.getUser(userId);
-    const personalDetails: PersonalDetails = {
-      firstName: ctx.firstName,
-      lastName: ctx.lastName,
-    };
     userProfile = {
       ...userProfile,
-      personalDetails: personalDetails,
-      username: ctx.username,
+      username: userId,
     };
+    if (ctx) {
+      userProfile.personalDetails = {
+        firstName: ctx.firstName,
+        lastName: ctx.lastName,
+      };
+    }
     this.updateMessageHistory(userProfile, StandardRoles.user, userMessage);
     console.log('messege handler');
     // updateDetails(userProfile, ctx, userMessage, StandardRoles.user);
@@ -85,18 +85,21 @@ export class MessageHandler {
         userMessage,
       );
     }
-
+    let botReply: string;
     if (shouldAskForSatisfactionLevel(userProfile)) {
       await createSatisfactionLevelSelector(
+        this,
         this.userStore,
         this.ratingSelector,
       );
       userProfile.lastTimeAskedForSatisfactionLevel = new Date();
       this.userStore.saveUser(userProfile);
+      botReply = '';
+    } else {
+      botReply = await this.respondToUser(userProfile, userMessage);
+      this.updateMessageHistory(userProfile, StandardRoles.assistant, botReply);
+      this.enhanceSummary(userProfile, userMessage, botReply);
     }
-    const botReply = await this.respondToUser(userProfile, userMessage);
-    this.updateMessageHistory(userProfile, StandardRoles.assistant, botReply);
-    this.enhanceSummary(userProfile, userMessage, botReply);
     return botReply;
   };
 

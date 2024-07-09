@@ -1,5 +1,4 @@
 import { Context, Markup, Telegraf } from 'telegraf';
-import { UserProfile } from '../user/UserProfile';
 import { UserStore } from '../user/UserStore';
 import moment from 'moment';
 

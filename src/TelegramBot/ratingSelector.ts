@@ -3,6 +3,7 @@ import { Context, Markup, Telegraf } from 'telegraf';
 export type SetSelectionCallback = (
   level: string,
   userId: string,
+  ctx: Context,
 ) => Promise<void>;
 
 export interface TelegramSelector {
@@ -42,9 +43,8 @@ export class RatingSelector implements TelegramSelector {
     values.forEach((value: string) => {
       this.bot.action(`rating_${subjectId}_${value}`, async (ctx) => {
         if (ctx.from?.id.toString()) {
-          setSelectionCallback(value, ctx.from?.id.toString());
+          setSelectionCallback(value, ctx.from?.id.toString(), ctx);
           ctx.answerCbQuery('Thank you.');
-          ctx.reply(`You feel ${value} now`);
         }
       });
     });
