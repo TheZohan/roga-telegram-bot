@@ -38,15 +38,14 @@ export const createSatisfactionLevelSelector = async (
   userStore: UserStore,
   ratingSelector: RatingSelector,
 ): Promise<void> => {
-  const satisfactionLevels = Object.values(FriendlySatisfactionLevel).map(
-    (level) => {
-      return i18n.t(
-        FriendlySatisfactionLevelTranslationKeys[
-          level as keyof typeof FriendlySatisfactionLevel
-        ],
-      );
-    },
-  );
+  const satisfactionLevels = Object.values(FriendlySatisfactionLevel);
+  const translatedSatisfactionLevels = satisfactionLevels.map((level) => {
+    return i18n.t(
+      FriendlySatisfactionLevelTranslationKeys[
+        level as keyof typeof FriendlySatisfactionLevel
+      ],
+    );
+  });
   const satisfactionMapping = satisfactionLevels.map((level, index) => ({
     level,
     value: index + 1,
@@ -57,7 +56,7 @@ export const createSatisfactionLevelSelector = async (
     userId: string,
     ctx: Context,
   ) => {
-    console.log('Setting level for user', userId);
+    console.log('Setting level for user', userId, level);
     const mapping = satisfactionMapping.find((m) => m.level === level);
     if (!mapping) {
       throw new Error('Invalid satisfaction level');
@@ -88,6 +87,7 @@ export const createSatisfactionLevelSelector = async (
     'satisfactionLevel',
     i18n.t('askForSatisfactionLevel'),
     satisfactionLevels,
+    translatedSatisfactionLevels,
     setRatingCallback,
   );
 };

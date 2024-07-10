@@ -11,6 +11,7 @@ export interface TelegramSelector {
     subjectId: string,
     displayText: string,
     values: string[],
+    displayValues: string[],
     setSelectionCallback: SetSelectionCallback,
   ): Promise<void>;
 }
@@ -28,18 +29,21 @@ export class RatingSelector implements TelegramSelector {
     subjectId: string,
     displayText: string,
     values: string[],
+    displayValues: string[],
     setSelectionCallback: SetSelectionCallback,
   ) => {
     if (values.length > 8) {
       console.log(`Telegram can't add more than 8 values to a selector`);
     }
 
-    const selectorMarkup = values.map((value) => {
-      return Markup.button.callback(`${value}`, `rating_${subjectId}_${value}`);
+    const selectorMarkup = values.map((value, index) => {
+      return Markup.button.callback(
+        `${displayValues.at(index)}`,
+        `rating_${subjectId}_${value}`,
+      );
     });
 
     this.ctx.reply(displayText, Markup.inlineKeyboard(selectorMarkup));
-    // Handle language selection
     values.forEach((value: string) => {
       this.bot.action(`rating_${subjectId}_${value}`, async (ctx) => {
         if (ctx.from?.id.toString()) {
