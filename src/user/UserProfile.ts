@@ -16,11 +16,19 @@ export enum Language {
 }
 
 export enum FriendlySatisfactionLevel {
-  Terrible = 'Awful',
+  Awful = 'Awful',
   Bad = 'Bad',
   Meh = 'Meh',
   Good = 'Good',
-  Awesome = 'Great',
+  Great = 'Great',
+}
+
+export enum FriendlySatisfactionLevelTranslationKeys {
+  Awful = 'FriendlySatisfactionLevel.Awful',
+  Bad = 'FriendlySatisfactionLevel.Bad',
+  Meh = 'FriendlySatisfactionLevel.Meh',
+  Good = 'FriendlySatisfactionLevel.Good',
+  Great = 'FriendlySatisfactionLevel.Great',
 }
 
 export interface Rating {

@@ -76,10 +76,14 @@ export class RedisUserStore implements UserStore {
         // Trim the list to maintain max number of backups
         await this.client.lTrim(backupListKey, 0, MAX_HISTORY - 1);
         // Delete the current message history
-        userProfile.messageHistory = [];
-        userProfile.conversationSummary = '';
-        userProfile.satisfactionLevel = [];
-        await this.saveUser(userProfile);
+        const emptyProfile: UserProfile = {
+          id: userProfile.id,
+          language: Language.heb,
+          personalDetails: {},
+          messageHistory: [],
+          satisfactionLevel: [],
+        };
+        await this.saveUser(emptyProfile);
         console.log(`User profile for user ${userId} backed up and cleared.`);
       }
       const messageKey = `messages:${userId}`;
