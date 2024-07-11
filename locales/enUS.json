@@ -7,7 +7,7 @@
       "Meh": "Meh",
       "Good": "Good",
       "Great": "Great",
-      "Template": "I am feeling {{level}}"
+      "Template": "I just answer the question: 'How do you feel?' and I am feeling {{level}}"
     }
   }
   

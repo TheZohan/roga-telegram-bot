@@ -12,11 +12,8 @@ import { gzipSync } from 'zlib';
 import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
-import {
-  createSatisfactionLevelSelector,
-  shouldAskForSatisfactionLevel,
-} from './SatisfactioLevelSelector';
-import CohereApi from '../providers/CohereApi';
+import { createSatisfactionLevelSelector } from './SatisfactioLevelSelector';
+import moment from 'moment';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
@@ -59,6 +56,7 @@ export class MessageHandler {
     userMessage: string,
     ctx?: UserContext,
   ): Promise<string> => {
+    console.log('Handling message', userMessage, 'for user', userId);
     let userProfile = await this.userStore.getUser(userId);
     userProfile = {
       ...userProfile,
@@ -86,21 +84,57 @@ export class MessageHandler {
       );
     }
     let botReply: string;
-    if (shouldAskForSatisfactionLevel(userProfile)) {
-      await createSatisfactionLevelSelector(
-        this,
-        this.userStore,
-        this.ratingSelector,
-      );
-      userProfile.lastTimeAskedForSatisfactionLevel = new Date();
-      this.userStore.saveUser(userProfile);
-      botReply = '';
-    } else {
-      botReply = await this.respondToUser(userProfile, userMessage);
-      this.updateMessageHistory(userProfile, StandardRoles.assistant, botReply);
-      this.enhanceSummary(userProfile, userMessage, botReply);
+    const nextAction = await this.decideOnNextAction(userProfile, userMessage);
+    console.log('nextAction:', nextAction);
+    switch (nextAction) {
+      case '[CheckSatisfactionLevel]':
+        await createSatisfactionLevelSelector(
+          this,
+          userMessage,
+          this.userStore,
+          this.ratingSelector,
+        );
+        userProfile.lastTimeAskedForSatisfactionLevel = new Date();
+        this.userStore.saveUser(userProfile);
+        botReply = '';
+        break;
+      default:
+        botReply = await this.respondToUser(userProfile, userMessage);
+        this.updateMessageHistory(
+          userProfile,
+          StandardRoles.assistant,
+          botReply,
+        );
+        this.enhanceSummary(userProfile, userMessage, botReply);
     }
     return botReply;
+  };
+
+  decideOnNextAction = async (
+    userProfile: UserProfile,
+    lastUserMessage: string,
+  ): Promise<string> => {
+    const userProfileString = JSON.stringify(userProfile);
+    const now = new Date();
+    let timeDifference = moment.duration(1000);
+    if (userProfile.lastTimeAskedForSatisfactionLevel) {
+      timeDifference = moment.duration(
+        now.getTime() -
+          new Date(userProfile.lastTimeAskedForSatisfactionLevel).getTime(),
+      );
+    }
+    console.log('TD', timeDifference.asHours());
+    const systemMessage = getPrompt('decideOnNextAction', {
+      lastUserMessage,
+      lastTimeAskedForSatisfactionLevel: timeDifference.asHours(),
+      userProfile: userProfileString,
+    });
+    const botResponse: string = await this.openAIClient.sendMessage(
+      systemMessage,
+      '',
+      userProfile.messageHistory,
+    );
+    return botResponse;
   };
 
   isMessageInChatContext = async (
