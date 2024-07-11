@@ -90,6 +90,7 @@ export class MessageHandler {
       case '[CheckSatisfactionLevel]':
         await createSatisfactionLevelSelector(
           this,
+          userMessage,
           this.userStore,
           this.ratingSelector,
         );
@@ -122,10 +123,10 @@ export class MessageHandler {
           new Date(userProfile.lastTimeAskedForSatisfactionLevel).getTime(),
       );
     }
-    console.log('TD', timeDifference.hours());
+    console.log('TD', timeDifference.asHours());
     const systemMessage = getPrompt('decideOnNextAction', {
       lastUserMessage,
-      lastTimeAskedForSatisfactionLevel: timeDifference.hours(),
+      lastTimeAskedForSatisfactionLevel: timeDifference.asHours(),
       userProfile: userProfileString,
     });
     const botResponse: string = await this.openAIClient.sendMessage(

@@ -35,6 +35,7 @@ export function shouldAskForSatisfactionLevel(
 
 export const createSatisfactionLevelSelector = async (
   messageHandler: MessageHandler,
+  lastUserMessage: string,
   userStore: UserStore,
   ratingSelector: RatingSelector,
 ): Promise<void> => {
@@ -72,14 +73,15 @@ export const createSatisfactionLevelSelector = async (
     }
     userProfile.satisfactionLevel.push(ratingObj);
     userStore.saveUser(userProfile);
+    const translatedSatisfactionLevel: string = i18n.t(
+      FriendlySatisfactionLevelTranslationKeys[
+        level as keyof typeof FriendlySatisfactionLevel
+      ],
+    );
     ctx.reply(
       await messageHandler.handleMessage(
         userId,
-        i18n.t(
-          FriendlySatisfactionLevelTranslationKeys[
-            level as keyof typeof FriendlySatisfactionLevel
-          ],
-        ),
+        `${lastUserMessage}. ${i18n.t('FriendlySatisfactionLevel.Template', { level: translatedSatisfactionLevel })}`,
       ),
     );
   };
