@@ -1,6 +1,6 @@
 import { MemoryUserStore } from './MemoryUserStore';
 import { RedisUserStore } from './RedisUserStore';
-import { Message, UserProfile } from './UserProfile';
+import { Message, UserProfile, UserProfileWithMesseges } from './UserProfile';
 
 export interface UserStore {
   saveUser(user: UserProfile): Promise<void>;
@@ -10,6 +10,7 @@ export interface UserStore {
   clearMessageHistory(userId: string): Promise<void>;
   getBackups(userId: string): Promise<string[]>;
   restoreFromBackup(backupKey: string): Promise<void>;
+  getUserProfileAndMessegeHistory(userId: string): Promise<UserProfileWithMesseges>;
   disconnect(): void;
 }
 

@@ -90,9 +90,7 @@ export const exportMessageHistoryToCsv = async (): Promise<string> => {
     const utf8Content = iconv.encode(iconv.decode(csvContent, 'utf8'), 'utf8');
     const csvPath = 'message_history_utf8.csv';
     fs.writeFileSync(csvPath, utf8Content);
-    console.log(
-      'Message history re-encoded to UTF-8 in message_history_utf8.csv',
-    );
+    console.log('Message history re-encoded to UTF-8 in message_history_utf8.csv');
     return csvPath;
   } catch (err) {
     console.error('Error:', err);

@@ -1,4 +1,4 @@
-import { Language, Message, UserProfile } from './UserProfile';
+import { Language, Message, UserProfile, UserProfileWithMesseges } from './UserProfile';
 import { UserStore } from './UserStore';
 
 export class MemoryUserStore implements UserStore {
@@ -14,7 +14,6 @@ export class MemoryUserStore implements UserStore {
       this.store.get(userId) ||
       ({
         id: userId,
-        messageHistory: [],
         satisfactionLevel: [],
         personalDetails: {},
         language: Language.heb,
@@ -23,18 +22,26 @@ export class MemoryUserStore implements UserStore {
   }
 
   async addMessage(message: Message): Promise<void> {
-    const conversation = this.conversationHistory.get(message.userId)!;
+    const conversation = this.conversationHistory.get(message.userId) || [];
     conversation?.push(message);
     this.conversationHistory.set(message.userId, conversation);
   }
   async getMessageHistory(userId: string): Promise<Message[]> {
-    return this.conversationHistory.get(userId)!;
+    return this.conversationHistory.get(userId)! || [];
+  }
+
+  async getUserProfileAndMessegeHistory(userId: string): Promise<UserProfileWithMesseges> {
+    const userProfile = await this.getUser(userId);
+    const messageHistory = await this.getMessageHistory(userId);
+    return {
+      ...userProfile,
+      messageHistory: messageHistory,
+    };
   }
 
   async clearMessageHistory(userId: string): Promise<void> {
     const userProfile = await this.getUser(userId);
     userProfile.conversationSummary = '';
-    userProfile.messageHistory = [];
     this.saveUser(userProfile);
     this.conversationHistory.set(userId, []);
   }

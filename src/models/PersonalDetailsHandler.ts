@@ -1,17 +1,13 @@
 import cron from 'node-cron';
 import { PersonalDetails } from '../user/UserProfile';
 
-export function getMissingDetails(
-  details: PersonalDetails,
-): (keyof PersonalDetails)[] {
+export function getMissingDetails(details: PersonalDetails): (keyof PersonalDetails)[] {
   return Object.keys(details).filter(
     (key) => details[key as keyof PersonalDetails] === undefined,
   ) as (keyof PersonalDetails)[];
 }
 
-export function generatePrompt(
-  missingDetails: (keyof PersonalDetails)[],
-): string {
+export function generatePrompt(missingDetails: (keyof PersonalDetails)[]): string {
   if (missingDetails.length === 0) {
     return 'All personal details are filled.';
   }
@@ -45,8 +41,6 @@ export function askForPermission(): string {
 export function setUpDailyReminder() {
   cron.schedule('0 0 * * *', () => {
     // This cron expression runs every day at midnight
-    console.log(
-      'Reminder: Please provide your personal details for app usage.',
-    );
+    console.log('Reminder: Please provide your personal details for app usage.');
   });
 }

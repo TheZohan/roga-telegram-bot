@@ -1,6 +1,6 @@
 import { createClient, RedisClientType } from 'redis';
 import { UserStore } from './UserStore';
-import { Language, Message, UserProfile } from './UserProfile';
+import { Language, Message, UserProfile, UserProfileWithMesseges } from './UserProfile';
 
 const MAX_HISTORY = 10; // Default max history
 
@@ -24,11 +24,23 @@ export class RedisUserStore implements UserStore {
     });
   }
 
+  async getUserProfileAndMessegeHistory(userId: string): Promise<UserProfileWithMesseges> {
+    const userProfile = await this.getUser(userId);
+    const messageHistory = await this.getMessageHistory(userId);
+    return Promise.resolve({
+      ...userProfile,
+      messageHistory: messageHistory,
+    });
+  }
+
   async connect(): Promise<void> {
     await this.client.connect();
   }
 
   async saveUser(user: UserProfile): Promise<void> {
+    if ('messageHistory' in user) {
+      delete user.messageHistory;
+    }
     await this.client.set(`user:${user.id}`, JSON.stringify(user));
   }
 
@@ -38,7 +50,6 @@ export class RedisUserStore implements UserStore {
       ? JSON.parse(data)
       : ({
           id: userId,
-          messageHistory: [],
           satisfactionLevel: [],
           personalDetails: {},
           language: Language.heb,
@@ -46,10 +57,7 @@ export class RedisUserStore implements UserStore {
   }
 
   async addMessage(message: Message): Promise<void> {
-    await this.client.rPush(
-      `messages:${message.userId}`,
-      JSON.stringify(message),
-    );
+    await this.client.rPush(`messages:${message.userId}`, JSON.stringify(message));
   }
 
   // Fetch all user message keys
@@ -80,7 +88,6 @@ export class RedisUserStore implements UserStore {
           id: userProfile.id,
           language: Language.heb,
           personalDetails: {},
-          messageHistory: [],
           satisfactionLevel: [],
         };
         await this.saveUser(emptyProfile);
@@ -102,9 +109,7 @@ export class RedisUserStore implements UserStore {
         // Delete the current message history
         await this.client.del(messageKey);
 
-        console.log(
-          `Message history for user ${userId} backed up and cleared.`,
-        );
+        console.log(`Message history for user ${userId} backed up and cleared.`);
       } else {
         console.log(`No message history found for user ${userId}.`);
       }
@@ -151,9 +156,7 @@ export class RedisUserStore implements UserStore {
   // return keys;
 
   async restoreFromBackup(backupKey: string): Promise<void> {
-    const profileString: string = (await this.client.get(
-      `user_backups:${backupKey}`,
-    ))!;
+    const profileString: string = (await this.client.get(`user_backups:${backupKey}`))!;
     const profile: UserProfile = JSON.parse(profileString) as UserProfile;
     this.saveUser(profile);
   }
