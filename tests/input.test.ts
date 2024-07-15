@@ -24,12 +24,14 @@ jest.mock('../src/providers/OpenAIClient', () => {
 });
 
 const originalGetPrompt = PromptsLoader.getPrompt;
-jest.spyOn(PromptsLoader, 'getPrompt').mockImplementation((promptName, data) => {
-  delete data.userProfile;
-  delete data.randomTeacher;
-  delete data.answerLength;
-  return originalGetPrompt(promptName, data);
-});
+jest
+  .spyOn(PromptsLoader, 'getPrompt')
+  .mockImplementation((promptName, data) => {
+    delete data.userProfile;
+    delete data.randomTeacher;
+    delete data.answerLength;
+    return originalGetPrompt(promptName, data);
+  });
 
 const setResponses = async (responses: Responses, user: UserProfile) => {
   const isMessageInChatContext = getPrompt('isMessageInChatContext', {});
@@ -41,14 +43,20 @@ const setResponses = async (responses: Responses, user: UserProfile) => {
   const notInContext = getPrompt('informTheUserThatTheMessageIsNotInContext', {
     lastMessage: responses.userMessage,
   });
-  openAIClientMock.setResponse(createInput(notInContext, responses.userMessage), responses.botMessage);
+  openAIClientMock.setResponse(
+    createInput(notInContext, responses.userMessage),
+    responses.botMessage,
+  );
 
   const combinedText = `${user.conversationSummary} User: ${responses.userMessage} Bot: ${responses.botMessage}`;
   const summeryPrompt = getPrompt('enhanceSummary', {
     combinedText: combinedText,
   });
 
-  openAIClientMock.setResponse(createInput(summeryPrompt, responses.userMessage), responses.summery);
+  openAIClientMock.setResponse(
+    createInput(summeryPrompt, responses.userMessage),
+    responses.summery,
+  );
 
   if (responses.inContext) {
     openAIClientMock.setResponse(
@@ -72,7 +80,6 @@ describe('basic tests', () => {
     username: 'yogev',
     personalDetails: {},
     conversationSummary: '',
-    messageHistory: [],
     language: Language.enUS,
     satisfactionLevel: [],
     lastTimeAskedForSatisfactionLevel: new Date(),
@@ -91,10 +98,13 @@ describe('basic tests', () => {
       userMessage: 'Hi',
       botMessage: 'Hello! How can I help you today?',
       inContext: true,
-      summery: 'The user said hi and I responded with hello how can I help you today',
+      summery:
+        'The user said hi and I responded with hello how can I help you today',
     };
     setResponses(responses, userProfile);
-    expect(messageHandler.handleMessage('yogev', responses.userMessage, userCtx)).resolves.toBe(responses.botMessage);
+    expect(
+      messageHandler.handleMessage('yogev', responses.userMessage, userCtx),
+    ).resolves.toBe(responses.botMessage);
   });
 
   it('Should replay that the message not in context, recived : Write me a function in c ', async () => {
@@ -102,9 +112,12 @@ describe('basic tests', () => {
       userMessage: 'Write me a function in c',
       botMessage: 'not in context',
       inContext: false,
-      summery: 'the user wanted a function in c that is not related to the converstion',
+      summery:
+        'the user wanted a function in c that is not related to the converstion',
     };
     setResponses(responses, userProfile);
-    expect(messageHandler.handleMessage('yogev', responses.userMessage, userCtx)).resolves.toBe(responses.botMessage);
+    expect(
+      messageHandler.handleMessage('yogev', responses.userMessage, userCtx),
+    ).resolves.toBe(responses.botMessage);
   });
 });
