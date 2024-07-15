@@ -1,4 +1,9 @@
-import { Language, Message, UserProfile, UserProfileWithMesseges } from './UserProfile';
+import {
+  Language,
+  Message,
+  UserProfile,
+  UserProfileWithMesseges,
+} from './UserProfile';
 import { UserStore } from './UserStore';
 
 export class MemoryUserStore implements UserStore {
@@ -30,7 +35,9 @@ export class MemoryUserStore implements UserStore {
     return this.conversationHistory.get(userId)! || [];
   }
 
-  async getUserProfileAndMessegeHistory(userId: string): Promise<UserProfileWithMesseges> {
+  async getUserProfileAndMessegeHistory(
+    userId: string,
+  ): Promise<UserProfileWithMesseges> {
     const userProfile = await this.getUser(userId);
     const messageHistory = await this.getMessageHistory(userId);
     return {
