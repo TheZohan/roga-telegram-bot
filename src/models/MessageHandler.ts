@@ -1,12 +1,6 @@
 import { OpenAIClient } from '../providers/OpenAIClient';
 import { LLMProvider } from '../providers/LlmProvider';
-import {
-  UserContext,
-  UserProfile,
-  Message,
-  StandardRoles,
-  Language,
-} from '../user/UserProfile';
+import { UserContext, UserProfile, Message, StandardRoles, Language } from '../user/UserProfile';
 import { getPrompt } from '../prompts/PromptsLoader';
 import { gzipSync } from 'zlib';
 import { UserStore } from '../user/UserStore';
@@ -37,8 +31,7 @@ export class MessageHandler {
   greetTheUser = async (userId: string): Promise<string> => {
     const userProfile: UserProfile = await this.userStore.getUser(userId);
     const userProfileString = this.compressMessage(JSON.stringify(userProfile));
-    const defaultLanguage: keyof typeof Language = process.env
-      .LANGUAGE! as keyof typeof Language;
+    const defaultLanguage: keyof typeof Language = process.env.LANGUAGE! as keyof typeof Language;
     const language: string = Language[defaultLanguage];
     console.log('Language', language);
     const systemMessage = getPrompt('greeting', {
@@ -51,11 +44,7 @@ export class MessageHandler {
     return response;
   };
 
-  handleMessage = async (
-    userId: string,
-    userMessage: string,
-    ctx?: UserContext,
-  ): Promise<string> => {
+  handleMessage = async (userId: string, userMessage: string, ctx?: UserContext): Promise<string> => {
     console.log('Handling message', userMessage, 'for user', userId);
     let userProfile = await this.userStore.getUser(userId);
     userProfile = {
@@ -73,54 +62,35 @@ export class MessageHandler {
     // updateDetails(userProfile, ctx, userMessage, StandardRoles.user);
 
     // Stage 1: Check if message is in the context of spiritual journey or personal growth.
-    const isMessageInContext = await this.isMessageInChatContext(
-      userProfile,
-      userMessage,
-    );
+    const isMessageInContext = await this.isMessageInChatContext(userProfile, userMessage);
     if (!isMessageInContext) {
-      return this.informTheUserThatTheMessageIsNotInContext(
-        userProfile,
-        userMessage,
-      );
+      return this.informTheUserThatTheMessageIsNotInContext(userProfile, userMessage);
     }
     let botReply: string;
     const nextAction = await this.decideOnNextAction(userProfile, userMessage);
     console.log('nextAction:', nextAction);
     switch (nextAction) {
       case '[CheckSatisfactionLevel]':
-        await createSatisfactionLevelSelector(
-          this,
-          userMessage,
-          this.userStore,
-          this.ratingSelector,
-        );
+        await createSatisfactionLevelSelector(this, userMessage, this.userStore, this.ratingSelector);
         userProfile.lastTimeAskedForSatisfactionLevel = new Date();
         this.userStore.saveUser(userProfile);
         botReply = '';
         break;
       default:
         botReply = await this.respondToUser(userProfile, userMessage);
-        this.updateMessageHistory(
-          userProfile,
-          StandardRoles.assistant,
-          botReply,
-        );
+        this.updateMessageHistory(userProfile, StandardRoles.assistant, botReply);
         this.enhanceSummary(userProfile, userMessage, botReply);
     }
     return botReply;
   };
 
-  decideOnNextAction = async (
-    userProfile: UserProfile,
-    lastUserMessage: string,
-  ): Promise<string> => {
+  decideOnNextAction = async (userProfile: UserProfile, lastUserMessage: string): Promise<string> => {
     const userProfileString = JSON.stringify(userProfile);
     const now = new Date();
     let timeDifference = moment.duration(1000);
     if (userProfile.lastTimeAskedForSatisfactionLevel) {
       timeDifference = moment.duration(
-        now.getTime() -
-          new Date(userProfile.lastTimeAskedForSatisfactionLevel).getTime(),
+        now.getTime() - new Date(userProfile.lastTimeAskedForSatisfactionLevel).getTime(),
       );
     }
     console.log('TD', timeDifference.asHours());
@@ -129,56 +99,37 @@ export class MessageHandler {
       lastTimeAskedForSatisfactionLevel: timeDifference.asHours(),
       userProfile: userProfileString,
     });
-    const botResponse: string = await this.openAIClient.sendMessage(
-      systemMessage,
-      '',
-      userProfile.messageHistory,
-    );
+    const botResponse: string = await this.openAIClient.sendMessage(systemMessage, '', userProfile.messageHistory);
     return botResponse;
   };
 
-  isMessageInChatContext = async (
-    userProfile: UserProfile,
-    message: string,
-  ): Promise<boolean> => {
+  isMessageInChatContext = async (userProfile: UserProfile, message: string): Promise<boolean> => {
     const userProfileString = JSON.stringify(userProfile);
     const systemMessage = getPrompt('isMessageInChatContext', {
       userProfile: userProfileString,
     });
-    const botResponse: string = await this.openAIClient.sendMessage(
-      systemMessage,
-      message,
-      userProfile.messageHistory,
-    );
+    const botResponse: string = await this.openAIClient.sendMessage(systemMessage, message, userProfile.messageHistory);
 
-    const yesRegex = /\byes\b/i; // \b ensures word boundaries, i makes it case-insensitive
-    const noRegex = /\bno\b/i; // \b ensures word boundaries, i makes it case-insensitive
     let result: boolean = true;
-    if (yesRegex.test(botResponse)) {
+    if (botResponse == '1') {
       result = true;
-    } else if (noRegex.test(botResponse)) {
+    } else if (botResponse == '0') {
       result = false;
     } else {
-      console.log('The bot did not return yes or no!');
+      console.log('The bot did not return 1 or 0!');
     }
     console.log(result);
     console.log('isMessageInChatContext:', result);
     return result;
   };
 
-  informTheUserThatTheMessageIsNotInContext = async (
-    userProfile: UserProfile,
-    message: string,
-  ): Promise<string> => {
+  informTheUserThatTheMessageIsNotInContext = async (userProfile: UserProfile, message: string): Promise<string> => {
     const userProfileString = JSON.stringify(userProfile);
-    const systemMessage = getPrompt(
-      'informTheUserThatTheMessageIsNotInContext',
-      { userProfile: userProfileString, lastMessage: message },
-    );
-    const botResponse: string = await this.openAIClient.sendMessage(
-      systemMessage,
-      message,
-    );
+    const systemMessage = getPrompt('informTheUserThatTheMessageIsNotInContext', {
+      userProfile: userProfileString,
+      lastMessage: message,
+    });
+    const botResponse: string = await this.openAIClient.sendMessage(systemMessage, message);
     return botResponse;
   };
 
@@ -187,10 +138,7 @@ export class MessageHandler {
     const systemMessage = getPrompt('ReccomendNextAction', {
       userProfile: userProfileString,
     });
-    const botResponse: string = await this.openAIClient.sendMessage(
-      systemMessage,
-      '',
-    );
+    const botResponse: string = await this.openAIClient.sendMessage(systemMessage, '');
     return botResponse;
   };
 
@@ -198,10 +146,7 @@ export class MessageHandler {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
-  respondToUser = async (
-    userProfile: UserProfile,
-    message: string,
-  ): Promise<string> => {
+  respondToUser = async (userProfile: UserProfile, message: string): Promise<string> => {
     // Forward the message to OpenAI and get a response
     const userProfileString = JSON.stringify(userProfile);
     const teachers = [
@@ -230,34 +175,19 @@ export class MessageHandler {
     });
     console.log(userProfile);
     console.log(await this.userStore.getUser(userProfile.id));
-    return await this.openAIClient.sendMessage(
-      systemMessage,
-      message,
-      userProfile.messageHistory,
-    );
+    return await this.openAIClient.sendMessage(systemMessage, message, userProfile.messageHistory);
   };
 
-  enhanceSummary = async (
-    profile: UserProfile,
-    userMessage: string,
-    botResponse: string,
-  ) => {
+  enhanceSummary = async (profile: UserProfile, userMessage: string, botResponse: string) => {
     const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`;
     const systemMessage = getPrompt('enhanceSummary', {
       combinedText: combinedText,
     });
-    profile.conversationSummary = await this.openAIClient.sendMessage(
-      systemMessage,
-      '',
-    );
+    profile.conversationSummary = await this.openAIClient.sendMessage(systemMessage, '');
     this.userStore.saveUser(profile);
   };
 
-  updateMessageHistory = (
-    profile: UserProfile,
-    role: StandardRoles,
-    newMessage: string,
-  ): void => {
+  updateMessageHistory = (profile: UserProfile, role: StandardRoles, newMessage: string): void => {
     const message: Message = {
       id: uuidv4(),
       userId: profile.id,
