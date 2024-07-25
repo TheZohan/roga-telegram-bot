@@ -87,6 +87,7 @@ export class MessageHandler {
     });
     const res = await this.openAIClient.sendMessage(getDetailsFromMessagePrompt, message, []);
     res.substring(1, res.length - 1);
+    console.log('res:', res);
     let personalDetails;
     try {
       personalDetails = JSON.parse(res);
@@ -95,6 +96,7 @@ export class MessageHandler {
       console.log("can't parse message");
       personalDetails = userProfile.personalDetails;
     }
+    console.log('res:', personalDetails);
     return personalDetails;
   };
 
