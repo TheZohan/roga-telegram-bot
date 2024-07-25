@@ -6,6 +6,7 @@ import {
   Message,
   StandardRoles,
   Language,
+  PersonalDetails,
 } from '../user/UserProfile';
 import { getPrompt } from '../prompts/PromptsLoader';
 import { gzipSync } from 'zlib';
@@ -37,13 +38,16 @@ export class MessageHandler {
   greetTheUser = async (userId: string): Promise<string> => {
     const userProfile: UserProfile = await this.userStore.getUser(userId);
     const userProfileString = this.compressMessage(JSON.stringify(userProfile));
-    const defaultLanguage: keyof typeof Language = process.env
-      .LANGUAGE! as keyof typeof Language;
+    const defaultLanguage: keyof typeof Language = process.env.LANGUAGE! as keyof typeof Language;
     const language: string = Language[defaultLanguage];
+
+    const haveFirstName =
+      userProfile.personalDetails.firstName == undefined ? 'you have to ask for the users name' : '';
     console.log('Language', language);
     const systemMessage = getPrompt('greeting', {
       langauge: language,
       userProfile: userProfileString,
+      askForTheirName: haveFirstName,
     });
     const response = await this.openAIClient.sendMessage(systemMessage, '');
     this.updateMessageHistory(userProfile, StandardRoles.assistant, response);
@@ -54,7 +58,6 @@ export class MessageHandler {
   handleMessage = async (
     userId: string,
     userMessage: string,
-    ctx?: UserContext,
   ): Promise<string> => {
     console.log('Handling message', userMessage, 'for user', userId);
     let userProfile = await this.userStore.getUser(userId);
@@ -62,12 +65,7 @@ export class MessageHandler {
       ...userProfile,
       username: userId,
     };
-    if (ctx) {
-      userProfile.personalDetails = {
-        firstName: ctx.firstName,
-        lastName: ctx.lastName,
-      };
-    }
+    userProfile.personalDetails = await this.getDetailsFromMessage(userProfile, userMessage);
     this.updateMessageHistory(userProfile, StandardRoles.user, userMessage);
     console.log('messege handler');
     // updateDetails(userProfile, ctx, userMessage, StandardRoles.user);
@@ -109,7 +107,26 @@ export class MessageHandler {
     }
     return botReply;
   };
-
+  getDetailsFromMessage = async (userProfile: UserProfile, message: string): Promise<PersonalDetails> => {
+    const userProfileString = JSON.stringify(userProfile);
+    const getDetailsFromMessagePrompt = getPrompt('getDetails', {
+      userProfile: userProfileString,
+    });
+    const res = await this.openAIClient.sendMessage(getDetailsFromMessagePrompt, message, []);
+    res.substring(1, res.length - 1);
+    console.log('res:', res);
+    let personalDetails;
+    try {
+      personalDetails = JSON.parse(res);
+      this.userStore.saveUser(userProfile);
+    } catch (error) {
+      console.log("can't parse message");
+      personalDetails = userProfile.personalDetails;
+    }
+    console.log('res:', personalDetails);
+    return personalDetails;
+  };
+  
   decideOnNextAction = async (
     userProfile: UserProfile,
     lastUserMessage: string,

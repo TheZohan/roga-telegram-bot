@@ -67,7 +67,6 @@ export const initializeBot = async () => {
         const botReply = await messageHandler.handleMessage(
           userId,
           userMessage,
-          userContext,
         );
         if (botReply) {
           await ctx.reply(botReply);
