@@ -1,6 +1,6 @@
 import { OpenAIClient } from '../providers/OpenAIClient';
 import { LLMProvider } from '../providers/LlmProvider';
-import { UserContext, UserProfile, Message, StandardRoles, Language, PersonalDetails } from '../user/UserProfile';
+import { UserProfile, Message, StandardRoles, Language, PersonalDetails } from '../user/UserProfile';
 import { getPrompt } from '../prompts/PromptsLoader';
 import { gzipSync } from 'zlib';
 import { UserStore } from '../user/UserStore';
@@ -44,7 +44,7 @@ export class MessageHandler {
     return response;
   };
 
-  handleMessage = async (userId: string, userMessage: string, ctx?: UserContext): Promise<string> => {
+  handleMessage = async (userId: string, userMessage: string): Promise<string> => {
     console.log('Handling message', userMessage, 'for user', userId);
     let userProfile = await this.userStore.getUser(userId);
     userProfile = {
@@ -85,15 +85,14 @@ export class MessageHandler {
     const getDetailsFromMessagePrompt = getPrompt('getDetails', {
       userProfile: userProfileString,
     });
-    let res = await this.openAIClient.sendMessage(getDetailsFromMessagePrompt, message, []);
-    console.log('personal details');
-    console.log(res);
+    const res = await this.openAIClient.sendMessage(getDetailsFromMessagePrompt, message, []);
     res.substring(1, res.length - 1);
     let personalDetails;
     try {
       personalDetails = JSON.parse(res);
       this.userStore.saveUser(userProfile);
     } catch (error) {
+      console.log("can't parse message");
       personalDetails = userProfile.personalDetails;
     }
     return personalDetails;
