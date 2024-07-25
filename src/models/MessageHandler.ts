@@ -33,10 +33,14 @@ export class MessageHandler {
     const userProfileString = this.compressMessage(JSON.stringify(userProfile));
     const defaultLanguage: keyof typeof Language = process.env.LANGUAGE! as keyof typeof Language;
     const language: string = Language[defaultLanguage];
+
+    const haveFirstName =
+      userProfile.personalDetails.firstName == undefined ? 'you have to ask for the users name' : '';
     console.log('Language', language);
     const systemMessage = getPrompt('greeting', {
       langauge: language,
       userProfile: userProfileString,
+      askForTheirName: haveFirstName,
     });
     const response = await this.openAIClient.sendMessage(systemMessage, '');
     this.updateMessageHistory(userProfile, StandardRoles.assistant, response);
