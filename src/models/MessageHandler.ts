@@ -41,13 +41,13 @@ export class MessageHandler {
     const defaultLanguage: keyof typeof Language = process.env.LANGUAGE! as keyof typeof Language;
     const language: string = Language[defaultLanguage];
 
-    const haveFirstName =
+    const askForTheirNameString =
       userProfile.personalDetails.firstName == undefined ? 'you have to ask for the users name' : '';
     console.log('Language', language);
     const systemMessage = getPrompt('greeting', {
       langauge: language,
       userProfile: userProfileString,
-      askForTheirName: haveFirstName,
+      askForTheirName: askForTheirNameString,
     });
     const response = await this.openAIClient.sendMessage(systemMessage, '');
     this.updateMessageHistory(userProfile, StandardRoles.assistant, response);
@@ -65,7 +65,6 @@ export class MessageHandler {
       ...userProfile,
       username: userId,
     };
-    userProfile.personalDetails = await this.getDetailsFromMessage(userProfile, userMessage);
     this.updateMessageHistory(userProfile, StandardRoles.user, userMessage);
     console.log('messege handler');
     // updateDetails(userProfile, ctx, userMessage, StandardRoles.user);
@@ -104,10 +103,11 @@ export class MessageHandler {
           botReply,
         );
         this.enhanceSummary(userProfile, userMessage, botReply);
+        this.getDetailsFromMessage(userProfile, userMessage)
     }
     return botReply;
   };
-  getDetailsFromMessage = async (userProfile: UserProfile, message: string): Promise<PersonalDetails> => {
+  getDetailsFromMessage = async (userProfile: UserProfile, message: string) => {
     const userProfileString = JSON.stringify(userProfile);
     const getDetailsFromMessagePrompt = getPrompt('getDetails', {
       userProfile: userProfileString,
@@ -117,14 +117,12 @@ export class MessageHandler {
     console.log('res:', res);
     let personalDetails;
     try {
-      personalDetails = JSON.parse(res);
+      userProfile.personalDetails = JSON.parse(res);
       this.userStore.saveUser(userProfile);
     } catch (error) {
       console.log("can't parse message");
-      personalDetails = userProfile.personalDetails;
     }
     console.log('res:', personalDetails);
-    return personalDetails;
   };
   
   decideOnNextAction = async (
