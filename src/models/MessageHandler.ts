@@ -151,15 +151,13 @@ export class MessageHandler {
       userProfile.messageHistory,
     );
 
-    const yesRegex = /\byes\b/i; // \b ensures word boundaries, i makes it case-insensitive
-    const noRegex = /\bno\b/i; // \b ensures word boundaries, i makes it case-insensitive
     let result: boolean = true;
-    if (yesRegex.test(botResponse)) {
+    if (botResponse == '1') {
       result = true;
-    } else if (noRegex.test(botResponse)) {
+    } else if (botResponse == '0') {
       result = false;
     } else {
-      console.log('The bot did not return yes or no!');
+      console.log('The bot did not return 1 or no!');
     }
     console.log(result);
     console.log('isMessageInChatContext:', result);
