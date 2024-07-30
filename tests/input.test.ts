@@ -37,7 +37,7 @@ const setResponses = async (responses: Responses, user: UserProfile) => {
   const isMessageInChatContext = getPrompt('isMessageInChatContext', {});
   openAIClientMock.setResponse(
     createInput(isMessageInChatContext, responses.userMessage),
-    responses.inContext ? '1' : '0',
+    responses.inContext ? 'yes' : 'no',
   );
 
   const notInContext = getPrompt('informTheUserThatTheMessageIsNotInContext', {
@@ -80,7 +80,6 @@ describe('basic tests', () => {
     username: 'yogev',
     personalDetails: {},
     conversationSummary: '',
-    messageHistory: [],
     language: Language.enUS,
     satisfactionLevel: [],
     lastTimeAskedForSatisfactionLevel: new Date(),

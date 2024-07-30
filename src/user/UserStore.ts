@@ -1,8 +1,9 @@
 import { MemoryUserStore } from './MemoryUserStore';
 import { RedisUserStore } from './RedisUserStore';
-import { Message, UserProfile } from './UserProfile';
+import { Message, UserData, UserProfile } from './UserProfile';
 
 export interface UserStore {
+  getUserData(userId: string): Promise<UserData>;
   saveUser(user: UserProfile): Promise<void>;
   getUser(userId: string): Promise<UserProfile>;
   addMessage(message: Message): Promise<void>;

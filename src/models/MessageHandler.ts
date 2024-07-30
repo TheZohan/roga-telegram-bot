@@ -6,6 +6,7 @@ import {
   Message,
   StandardRoles,
   Language,
+  UserData,
 } from '../user/UserProfile';
 import { getPrompt } from '../prompts/PromptsLoader';
 import { gzipSync } from 'zlib';
@@ -14,6 +15,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
 import { createSatisfactionLevelSelector } from './SatisfactioLevelSelector';
 import moment from 'moment';
+import { profile } from 'console';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
@@ -35,10 +37,9 @@ export class MessageHandler {
   }
 
   greetTheUser = async (userId: string): Promise<string> => {
-    const userProfile: UserProfile = await this.userStore.getUser(userId);
-    const userProfileString = this.compressMessage(JSON.stringify(userProfile));
-    const defaultLanguage: keyof typeof Language = process.env
-      .LANGUAGE! as keyof typeof Language;
+    const userData: UserData = await this.userStore.getUserData(userId);
+    const userProfileString = this.compressMessage(JSON.stringify(userData));
+    const defaultLanguage: keyof typeof Language = process.env.LANGUAGE! as keyof typeof Language;
     const language: string = Language[defaultLanguage];
     console.log('Language', language);
     const systemMessage = getPrompt('greeting', {
@@ -46,8 +47,8 @@ export class MessageHandler {
       userProfile: userProfileString,
     });
     const response = await this.openAIClient.sendMessage(systemMessage, '');
-    this.updateMessageHistory(userProfile, StandardRoles.assistant, response);
-    this.userStore.saveUser(userProfile);
+    this.updateMessageHistory(userData, StandardRoles.assistant, response);
+    this.userStore.saveUser(userData.profile);
     return response;
   };
 
@@ -57,34 +58,34 @@ export class MessageHandler {
     ctx?: UserContext,
   ): Promise<string> => {
     console.log('Handling message', userMessage, 'for user', userId);
-    let userProfile = await this.userStore.getUser(userId);
-    userProfile = {
-      ...userProfile,
+    const UserData = await this.userStore.getUserData(userId);
+    UserData.profile = {
+      ...UserData.profile,
       username: userId,
     };
     if (ctx) {
-      userProfile.personalDetails = {
+      UserData.profile.personalDetails = {
         firstName: ctx.firstName,
         lastName: ctx.lastName,
       };
     }
-    this.updateMessageHistory(userProfile, StandardRoles.user, userMessage);
+    this.updateMessageHistory(UserData, StandardRoles.user, userMessage);
     console.log('messege handler');
     // updateDetails(userProfile, ctx, userMessage, StandardRoles.user);
 
     // Stage 1: Check if message is in the context of spiritual journey or personal growth.
     const isMessageInContext = await this.isMessageInChatContext(
-      userProfile,
+      UserData.profile,
       userMessage,
     );
     if (!isMessageInContext) {
       return this.informTheUserThatTheMessageIsNotInContext(
-        userProfile,
+        UserData.profile,
         userMessage,
       );
     }
     let botReply: string;
-    const nextAction = await this.decideOnNextAction(userProfile, userMessage);
+    const nextAction = await this.decideOnNextAction(UserData.profile, userMessage);
     console.log('nextAction:', nextAction);
     switch (nextAction) {
       case '[CheckSatisfactionLevel]':
@@ -94,18 +95,18 @@ export class MessageHandler {
           this.userStore,
           this.ratingSelector,
         );
-        userProfile.lastTimeAskedForSatisfactionLevel = new Date();
-        this.userStore.saveUser(userProfile);
+        UserData.profile.lastTimeAskedForSatisfactionLevel = new Date();
+        this.userStore.saveUser(UserData.profile);
         botReply = '';
         break;
       default:
-        botReply = await this.respondToUser(userProfile, userMessage);
+        botReply = await this.respondToUser(UserData.profile, userMessage);
         this.updateMessageHistory(
-          userProfile,
+         UserData,
           StandardRoles.assistant,
           botReply,
         );
-        this.enhanceSummary(userProfile, userMessage, botReply);
+        this.enhanceSummary(UserData.profile, userMessage, botReply);
     }
     return botReply;
   };
@@ -132,7 +133,6 @@ export class MessageHandler {
     const botResponse: string = await this.openAIClient.sendMessage(
       systemMessage,
       '',
-      userProfile.messageHistory,
     );
     return botResponse;
   };
@@ -148,7 +148,6 @@ export class MessageHandler {
     const botResponse: string = await this.openAIClient.sendMessage(
       systemMessage,
       message,
-      userProfile.messageHistory,
     );
 
     const yesRegex = /\byes\b/i; // \b ensures word boundaries, i makes it case-insensitive
@@ -233,7 +232,6 @@ export class MessageHandler {
     return await this.openAIClient.sendMessage(
       systemMessage,
       message,
-      userProfile.messageHistory,
     );
   };
 
@@ -254,20 +252,20 @@ export class MessageHandler {
   };
 
   updateMessageHistory = (
-    profile: UserProfile,
+    UserData: UserData,
     role: StandardRoles,
     newMessage: string,
   ): void => {
     const message: Message = {
       id: uuidv4(),
-      userId: profile.id,
+      userId: UserData.profile.id,
       role: role,
       timestamp: new Date(),
       message: newMessage,
     };
-    profile.messageHistory.push(message);
-    if (profile.messageHistory.length > MESSAGES_HISTORY_LENGTH) {
-      profile.messageHistory.shift();
+    UserData.messages.push(message);
+    if (UserData.messages.length > MESSAGES_HISTORY_LENGTH) {
+      UserData.messages.shift();
     }
 
     this.userStore.addMessage(message);

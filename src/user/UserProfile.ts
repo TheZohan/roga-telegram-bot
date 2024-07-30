@@ -4,10 +4,13 @@ export interface UserProfile {
   username?: string;
   personalDetails: PersonalDetails;
   conversationSummary?: string;
-  messageHistory: Message[];
   language: Language;
   satisfactionLevel: Rating[];
   lastTimeAskedForSatisfactionLevel?: Date;
+}
+export interface UserData {
+  profile: UserProfile;
+  messages: Message[];
 }
 
 export enum Language {
