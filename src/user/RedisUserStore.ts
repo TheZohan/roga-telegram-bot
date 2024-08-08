@@ -1,6 +1,6 @@
 import { createClient, RedisClientType } from 'redis';
 import { UserStore } from './UserStore';
-import { Language, Message, UserProfile } from './UserProfile';
+import { Language, Message, UserData, UserProfile } from './UserProfile';
 
 const MAX_HISTORY = 10; // Default max history
 
@@ -23,6 +23,11 @@ export class RedisUserStore implements UserStore {
       throw new Error("Couldn't connect to Redis");
     });
   }
+  async getUserData(userId: string): Promise<UserData> {
+    const userProfile = await this.getUser(userId);
+    const messages = await this.getMessageHistory(userId);
+    return { profile: userProfile, messages: messages };
+  }
 
   async connect(): Promise<void> {
     await this.client.connect();
@@ -38,7 +43,6 @@ export class RedisUserStore implements UserStore {
       ? JSON.parse(data)
       : ({
           id: userId,
-          messageHistory: [],
           satisfactionLevel: [],
           personalDetails: {},
           language: Language.heb,
@@ -58,7 +62,7 @@ export class RedisUserStore implements UserStore {
   }
 
   async getMessageHistory(userId: string): Promise<Message[]> {
-    const messages = await this.client.lRange(`messages:${userId}`, 0, -1);
+    const messages = await this.client.lRange(`messages:${userId}`, -20, -1);
     return messages.map((message) => JSON.parse(message));
   }
 
@@ -76,14 +80,9 @@ export class RedisUserStore implements UserStore {
         // Trim the list to maintain max number of backups
         await this.client.lTrim(backupListKey, 0, MAX_HISTORY - 1);
         // Delete the current message history
-        const emptyProfile: UserProfile = {
-          id: userProfile.id,
-          language: Language.heb,
-          personalDetails: {},
-          messageHistory: [],
-          satisfactionLevel: [],
-        };
-        await this.saveUser(emptyProfile);
+        await this.client.del(`messages:${userId}`);
+        userProfile.conversationSummary = '';
+        await this.saveUser(userProfile);
         console.log(`User profile for user ${userId} backed up and cleared.`);
       }
       const messageKey = `messages:${userId}`;

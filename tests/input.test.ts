@@ -80,7 +80,6 @@ describe('basic tests', () => {
     username: 'yogev',
     personalDetails: {},
     conversationSummary: '',
-    messageHistory: [],
     language: Language.enUS,
     satisfactionLevel: [],
     lastTimeAskedForSatisfactionLevel: new Date(),
