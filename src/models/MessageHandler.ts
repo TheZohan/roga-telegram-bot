@@ -1,13 +1,6 @@
 import { OpenAIClient } from '../providers/OpenAIClient';
 import { LLMProvider } from '../providers/LlmProvider';
-import {
-  UserContext,
-  UserProfile,
-  Message,
-  StandardRoles,
-  Language,
-  UserData,
-} from '../user/UserProfile';
+import { UserContext, UserProfile, Message, StandardRoles, Language, UserData } from '../user/UserProfile';
 import { getPrompt } from '../prompts/PromptsLoader';
 import { gzipSync } from 'zlib';
 import { UserStore } from '../user/UserStore';
@@ -15,7 +8,6 @@ import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
 import { createSatisfactionLevelSelector } from './SatisfactioLevelSelector';
 import moment from 'moment';
-import { profile } from 'console';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
@@ -38,7 +30,7 @@ export class MessageHandler {
 
   greetTheUser = async (userId: string): Promise<string> => {
     const userData: UserData = await this.userStore.getUserData(userId);
-    const userProfileString = this.compressMessage(JSON.stringify(userData));
+    const userProfileString = this.compressMessage(JSON.stringify(userData.profile));
     const defaultLanguage: keyof typeof Language = process.env.LANGUAGE! as keyof typeof Language;
     const language: string = Language[defaultLanguage];
     console.log('Language', language);
@@ -46,82 +38,59 @@ export class MessageHandler {
       langauge: language,
       userProfile: userProfileString,
     });
-    const response = await this.openAIClient.sendMessage(systemMessage, '');
+    const response = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
     this.updateMessageHistory(userData, StandardRoles.assistant, response);
     this.userStore.saveUser(userData.profile);
     return response;
   };
 
-  handleMessage = async (
-    userId: string,
-    userMessage: string,
-    ctx?: UserContext,
-  ): Promise<string> => {
+  handleMessage = async (userId: string, userMessage: string, ctx?: UserContext): Promise<string> => {
     console.log('Handling message', userMessage, 'for user', userId);
-    const UserData = await this.userStore.getUserData(userId);
-    UserData.profile = {
-      ...UserData.profile,
+    const userData = await this.userStore.getUserData(userId);
+    userData.profile = {
+      ...userData.profile,
       username: userId,
     };
     if (ctx) {
-      UserData.profile.personalDetails = {
+      userData.profile.personalDetails = {
         firstName: ctx.firstName,
         lastName: ctx.lastName,
       };
     }
-    this.updateMessageHistory(UserData, StandardRoles.user, userMessage);
+    this.updateMessageHistory(userData, StandardRoles.user, userMessage);
     console.log('messege handler');
-    // updateDetails(userProfile, ctx, userMessage, StandardRoles.user);
 
     // Stage 1: Check if message is in the context of spiritual journey or personal growth.
-    const isMessageInContext = await this.isMessageInChatContext(
-      UserData.profile,
-      userMessage,
-    );
+    const isMessageInContext = await this.isMessageInChatContext(userData, userMessage);
     if (!isMessageInContext) {
-      return this.informTheUserThatTheMessageIsNotInContext(
-        UserData.profile,
-        userMessage,
-      );
+      return this.informTheUserThatTheMessageIsNotInContext(userData, userMessage);
     }
     let botReply: string;
-    const nextAction = await this.decideOnNextAction(UserData.profile, userMessage);
+    const nextAction = await this.decideOnNextAction(userData, userMessage);
     console.log('nextAction:', nextAction);
     switch (nextAction) {
       case '[CheckSatisfactionLevel]':
-        await createSatisfactionLevelSelector(
-          this,
-          userMessage,
-          this.userStore,
-          this.ratingSelector,
-        );
-        UserData.profile.lastTimeAskedForSatisfactionLevel = new Date();
-        this.userStore.saveUser(UserData.profile);
+        await createSatisfactionLevelSelector(this, userMessage, this.userStore, this.ratingSelector);
+        userData.profile.lastTimeAskedForSatisfactionLevel = new Date();
+        this.userStore.saveUser(userData.profile);
         botReply = '';
         break;
       default:
-        botReply = await this.respondToUser(UserData.profile, userMessage);
-        this.updateMessageHistory(
-         UserData,
-          StandardRoles.assistant,
-          botReply,
-        );
-        this.enhanceSummary(UserData.profile, userMessage, botReply);
+        botReply = await this.respondToUser(userData, userMessage);
+        this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
+        this.enhanceSummary(userData.profile, userMessage, botReply);
     }
     return botReply;
   };
 
-  decideOnNextAction = async (
-    userProfile: UserProfile,
-    lastUserMessage: string,
-  ): Promise<string> => {
-    const userProfileString = JSON.stringify(userProfile);
+  decideOnNextAction = async (userData: UserData, lastUserMessage: string): Promise<string> => {
+    const userProfile = userData.profile;
+    const userProfileString = JSON.stringify(userData.profile);
     const now = new Date();
     let timeDifference = moment.duration(1000);
     if (userProfile.lastTimeAskedForSatisfactionLevel) {
       timeDifference = moment.duration(
-        now.getTime() -
-          new Date(userProfile.lastTimeAskedForSatisfactionLevel).getTime(),
+        now.getTime() - new Date(userProfile.lastTimeAskedForSatisfactionLevel).getTime(),
       );
     }
     console.log('TD', timeDifference.asHours());
@@ -130,25 +99,16 @@ export class MessageHandler {
       lastTimeAskedForSatisfactionLevel: timeDifference.asHours(),
       userProfile: userProfileString,
     });
-    const botResponse: string = await this.openAIClient.sendMessage(
-      systemMessage,
-      '',
-    );
+    const botResponse: string = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
     return botResponse;
   };
 
-  isMessageInChatContext = async (
-    userProfile: UserProfile,
-    message: string,
-  ): Promise<boolean> => {
-    const userProfileString = JSON.stringify(userProfile);
+  isMessageInChatContext = async (userData: UserData, message: string): Promise<boolean> => {
+    const userProfileString = JSON.stringify(userData.profile);
     const systemMessage = getPrompt('isMessageInChatContext', {
       userProfile: userProfileString,
     });
-    const botResponse: string = await this.openAIClient.sendMessage(
-      systemMessage,
-      message,
-    );
+    const botResponse: string = await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
 
     let result: boolean = true;
     if (botResponse == '1') {
@@ -163,31 +123,13 @@ export class MessageHandler {
     return result;
   };
 
-  informTheUserThatTheMessageIsNotInContext = async (
-    userProfile: UserProfile,
-    message: string,
-  ): Promise<string> => {
-    const userProfileString = JSON.stringify(userProfile);
-    const systemMessage = getPrompt(
-      'informTheUserThatTheMessageIsNotInContext',
-      { userProfile: userProfileString, lastMessage: message },
-    );
-    const botResponse: string = await this.openAIClient.sendMessage(
-      systemMessage,
-      message,
-    );
-    return botResponse;
-  };
-
-  reccomendNextAction = async (userProfile: UserProfile): Promise<string> => {
-    const userProfileString = JSON.stringify(userProfile);
-    const systemMessage = getPrompt('ReccomendNextAction', {
+  informTheUserThatTheMessageIsNotInContext = async (userData: UserData, message: string): Promise<string> => {
+    const userProfileString = JSON.stringify(userData.profile);
+    const systemMessage = getPrompt('informTheUserThatTheMessageIsNotInContext', {
       userProfile: userProfileString,
+      lastMessage: message,
     });
-    const botResponse: string = await this.openAIClient.sendMessage(
-      systemMessage,
-      '',
-    );
+    const botResponse: string = await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
     return botResponse;
   };
 
@@ -195,12 +137,9 @@ export class MessageHandler {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
-  respondToUser = async (
-    userProfile: UserProfile,
-    message: string,
-  ): Promise<string> => {
+  respondToUser = async (userData: UserData, message: string): Promise<string> => {
     // Forward the message to OpenAI and get a response
-    const userProfileString = JSON.stringify(userProfile);
+    const userProfileString = JSON.stringify(userData.profile);
     const teachers = [
       'Eckhart Tolle',
       'Thich Nhat Hanh',
@@ -225,35 +164,20 @@ export class MessageHandler {
       randomTeacher: randomTeacher,
       answerLength: answerLength,
     });
-    console.log(userProfile);
-    console.log(await this.userStore.getUser(userProfile.id));
-    return await this.openAIClient.sendMessage(
-      systemMessage,
-      message,
-    );
+    console.log(userData.profile);
+    return await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
   };
 
-  enhanceSummary = async (
-    profile: UserProfile,
-    userMessage: string,
-    botResponse: string,
-  ) => {
+  enhanceSummary = async (profile: UserProfile, userMessage: string, botResponse: string) => {
     const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`;
     const systemMessage = getPrompt('enhanceSummary', {
       combinedText: combinedText,
     });
-    profile.conversationSummary = await this.openAIClient.sendMessage(
-      systemMessage,
-      '',
-    );
+    profile.conversationSummary = await this.openAIClient.sendMessage(systemMessage, '', []);
     this.userStore.saveUser(profile);
   };
 
-  updateMessageHistory = (
-    UserData: UserData,
-    role: StandardRoles,
-    newMessage: string,
-  ): void => {
+  updateMessageHistory = (UserData: UserData, role: StandardRoles, newMessage: string): void => {
     const message: Message = {
       id: uuidv4(),
       userId: UserData.profile.id,
