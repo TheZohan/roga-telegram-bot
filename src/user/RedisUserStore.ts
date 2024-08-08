@@ -50,10 +50,7 @@ export class RedisUserStore implements UserStore {
   }
 
   async addMessage(message: Message): Promise<void> {
-    await this.client.rPush(
-      `messages:${message.userId}`,
-      JSON.stringify(message),
-    );
+    await this.client.rPush(`messages:${message.userId}`, JSON.stringify(message));
   }
 
   // Fetch all user message keys
@@ -101,9 +98,7 @@ export class RedisUserStore implements UserStore {
         // Delete the current message history
         await this.client.del(messageKey);
 
-        console.log(
-          `Message history for user ${userId} backed up and cleared.`,
-        );
+        console.log(`Message history for user ${userId} backed up and cleared.`);
       } else {
         console.log(`No message history found for user ${userId}.`);
       }
@@ -150,9 +145,7 @@ export class RedisUserStore implements UserStore {
   // return keys;
 
   async restoreFromBackup(backupKey: string): Promise<void> {
-    const profileString: string = (await this.client.get(
-      `user_backups:${backupKey}`,
-    ))!;
+    const profileString: string = (await this.client.get(`user_backups:${backupKey}`))!;
     const profile: UserProfile = JSON.parse(profileString) as UserProfile;
     this.saveUser(profile);
   }
