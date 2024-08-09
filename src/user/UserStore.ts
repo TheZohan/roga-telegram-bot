@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { MemoryUserStore } from './MemoryUserStore';
 import { RedisUserStore } from './RedisUserStore';
 import { Message, UserData, UserProfile } from './UserProfile';
@@ -22,13 +23,13 @@ export const createUserStore = async (): Promise<UserStore> => {
   try {
     await redisStore.connect();
     if (await redisStore.isConnected()) {
-      console.log('Connected to Redis');
+      logger.info('Connected to Redis');
       return redisStore;
     }
   } catch (error) {
-    console.error('Redis connection failed:', error);
+    logger.error('Redis connection failed:', error);
   }
 
-  console.log('Using MemoryUserStore as fallback');
+  logger.info('Using MemoryUserStore as fallback');
   return new MemoryUserStore();
 };

@@ -1,8 +1,5 @@
 import { Context } from 'telegraf';
-import {
-  RatingSelector,
-  SetSelectionCallback,
-} from '../TelegramBot/ratingSelector';
+import { RatingSelector, SetSelectionCallback } from '../TelegramBot/ratingSelector';
 import {
   FriendlySatisfactionLevel,
   FriendlySatisfactionLevelTranslationKeys,
@@ -11,17 +8,14 @@ import {
 } from '../user/UserProfile';
 import { UserStore } from '../user/UserStore';
 import { MessageHandler } from './MessageHandler';
-import i18n from '../il18n';
+import i18n from '../utils/il18n';
+import logger from '../utils/logger';
 
-export function shouldAskForSatisfactionLevel(
-  userProfile: UserProfile,
-): boolean {
+export function shouldAskForSatisfactionLevel(userProfile: UserProfile): boolean {
   // Calculate the time difference
   const now = new Date();
   if (userProfile.lastTimeAskedForSatisfactionLevel) {
-    const timeDifference =
-      now.getTime() -
-      new Date(userProfile.lastTimeAskedForSatisfactionLevel).getTime();
+    const timeDifference = now.getTime() - new Date(userProfile.lastTimeAskedForSatisfactionLevel).getTime();
 
     // Convert time difference to hours
     const hoursDifference = timeDifference / (1000 * 60 * 60);
@@ -41,28 +35,19 @@ export const createSatisfactionLevelSelector = async (
 ): Promise<void> => {
   const satisfactionLevels = Object.values(FriendlySatisfactionLevel);
   const translatedSatisfactionLevels = satisfactionLevels.map((level) => {
-    return i18n.t(
-      FriendlySatisfactionLevelTranslationKeys[
-        level as keyof typeof FriendlySatisfactionLevel
-      ],
-    );
+    return i18n.t(FriendlySatisfactionLevelTranslationKeys[level as keyof typeof FriendlySatisfactionLevel]);
   });
   const satisfactionMapping = satisfactionLevels.map((level, index) => ({
     level,
     value: index + 1,
   }));
-  console.log('createSatisfactionLevelSelector');
-  const setRatingCallback: SetSelectionCallback = async (
-    level: string,
-    userId: string,
-    ctx: Context,
-  ) => {
-    console.log('Setting level for user', userId, level);
+  const setRatingCallback: SetSelectionCallback = async (level: string, userId: string, ctx: Context) => {
+    logger.debug('Setting level for user', userId, level);
     const mapping = satisfactionMapping.find((m) => m.level === level);
     if (!mapping) {
       throw new Error('Invalid satisfaction level');
     }
-    console.log('setting mapped value: ', level, mapping.value);
+    logger.debug('setting mapped value: ', level, mapping.value);
     const userProfile: UserProfile = await userStore.getUser(userId);
     const ratingObj: Rating = {
       timestamp: new Date(),
@@ -74,9 +59,7 @@ export const createSatisfactionLevelSelector = async (
     userProfile.satisfactionLevel.push(ratingObj);
     userStore.saveUser(userProfile);
     const translatedSatisfactionLevel: string = i18n.t(
-      FriendlySatisfactionLevelTranslationKeys[
-        level as keyof typeof FriendlySatisfactionLevel
-      ],
+      FriendlySatisfactionLevelTranslationKeys[level as keyof typeof FriendlySatisfactionLevel],
     );
     ctx.reply(
       await messageHandler.handleMessage(

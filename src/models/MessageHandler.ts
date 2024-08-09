@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
 import { createSatisfactionLevelSelector } from './SatisfactioLevelSelector';
 import moment from 'moment';
+import logger from '../utils/logger';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
@@ -18,10 +19,10 @@ export interface MessageData {
 }
 export class MessageHandler {
   userStore: UserStore;
-  ratingSelector: RatingSelector;
+  ratingSelector?: RatingSelector;
   openAIClient: LLMProvider;
 
-  constructor(userStore: UserStore, ratingSelector: RatingSelector) {
+  constructor(userStore: UserStore, ratingSelector?: RatingSelector) {
     this.userStore = userStore;
     this.ratingSelector = ratingSelector;
     this.openAIClient = new OpenAIClient();
@@ -33,7 +34,6 @@ export class MessageHandler {
     const userProfileString = this.compressMessage(JSON.stringify(userData.profile));
     const defaultLanguage: keyof typeof Language = process.env.LANGUAGE! as keyof typeof Language;
     const language: string = Language[defaultLanguage];
-    console.log('Language', language);
     const systemMessage = getPrompt('greeting', {
       langauge: language,
       userProfile: userProfileString,
@@ -45,7 +45,7 @@ export class MessageHandler {
   };
 
   handleMessage = async (userId: string, userMessage: string, ctx?: UserContext): Promise<string> => {
-    console.log('Handling message', userMessage, 'for user', userId);
+    logger.debug('Handling message', userMessage, 'for user', userId);
     const userData = await this.userStore.getUserData(userId);
     userData.profile = {
       ...userData.profile,
@@ -58,19 +58,18 @@ export class MessageHandler {
       };
     }
     this.updateMessageHistory(userData, StandardRoles.user, userMessage);
-    console.log('messege handler');
-
     // Stage 1: Check if message is in the context of spiritual journey or personal growth.
     const isMessageInContext = await this.isMessageInChatContext(userData, userMessage);
     if (!isMessageInContext) {
+      logger.info('The message', userMessage, 'is not in the context of the chat');
       return this.informTheUserThatTheMessageIsNotInContext(userData, userMessage);
     }
     let botReply: string;
     const nextAction = await this.decideOnNextAction(userData, userMessage);
-    console.log('nextAction:', nextAction);
+    logger.debug('nextAction:', nextAction);
     switch (nextAction) {
       case '[CheckSatisfactionLevel]':
-        await createSatisfactionLevelSelector(this, userMessage, this.userStore, this.ratingSelector);
+        await createSatisfactionLevelSelector(this, userMessage, this.userStore, this.ratingSelector!);
         userData.profile.lastTimeAskedForSatisfactionLevel = new Date();
         this.userStore.saveUser(userData.profile);
         botReply = '';
@@ -93,7 +92,6 @@ export class MessageHandler {
         now.getTime() - new Date(userProfile.lastTimeAskedForSatisfactionLevel).getTime(),
       );
     }
-    console.log('TD', timeDifference.asHours());
     const systemMessage = getPrompt('decideOnNextAction', {
       lastUserMessage,
       lastTimeAskedForSatisfactionLevel: timeDifference.asHours(),
@@ -116,10 +114,8 @@ export class MessageHandler {
     } else if (botResponse == '0') {
       result = false;
     } else {
-      console.log('The bot did not return 1 or no!');
+      logger.error('The bot did not return 1 or 0!');
     }
-    console.log(result);
-    console.log('isMessageInChatContext:', result);
     return result;
   };
 
@@ -164,7 +160,6 @@ export class MessageHandler {
       randomTeacher: randomTeacher,
       answerLength: answerLength,
     });
-    console.log(userData.profile);
     return await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
   };
 

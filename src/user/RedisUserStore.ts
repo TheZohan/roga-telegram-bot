@@ -1,6 +1,7 @@
 import { createClient, RedisClientType } from 'redis';
 import { UserStore } from './UserStore';
 import { Language, Message, UserData, UserProfile } from './UserProfile';
+import logger from '../utils/logger';
 
 const MAX_HISTORY = 10; // Default max history
 
@@ -19,7 +20,7 @@ export class RedisUserStore implements UserStore {
     });
 
     this.client.on('error', (err) => {
-      console.error('Redis Client Error', err);
+      logger.error('Redis Client Error', err);
       throw new Error("Couldn't connect to Redis");
     });
   }
@@ -80,7 +81,7 @@ export class RedisUserStore implements UserStore {
         await this.client.del(`messages:${userId}`);
         userProfile.conversationSummary = '';
         await this.saveUser(userProfile);
-        console.log(`User profile for user ${userId} backed up and cleared.`);
+        logger.info(`User profile for user ${userId} backed up and cleared.`);
       }
       const messageKey = `messages:${userId}`;
       const messageHistory = await this.client.lRange(messageKey, 0, -1);
@@ -98,12 +99,12 @@ export class RedisUserStore implements UserStore {
         // Delete the current message history
         await this.client.del(messageKey);
 
-        console.log(`Message history for user ${userId} backed up and cleared.`);
+        logger.info(`Message history for user ${userId} backed up and cleared.`);
       } else {
-        console.log(`No message history found for user ${userId}.`);
+        logger.info(`No message history found for user ${userId}.`);
       }
     } catch (error: unknown) {
-      console.error('Error clearing and backing up message history:', error);
+      logger.error('Error clearing and backing up message history:', error);
     }
   }
 
@@ -117,32 +118,6 @@ export class RedisUserStore implements UserStore {
       return backupName;
     });
   }
-  // const keys: string[] = [];
-  // let cursor = 0;
-
-  // try {
-  //   do {
-  //     const result = await this.client.scan(cursor, {
-  //       MATCH: `user_backups:*`,
-  //       COUNT: 100,
-  //     });
-
-  //     cursor = result.cursor;
-  //     const response: string[] = result.keys.map((backupName: string) => {
-  //       const prefix = 'user_backups:';
-  //       if (backupName.startsWith(prefix)) {
-  //         return backupName.replace(prefix, '');
-  //       }
-  //       return backupName;
-  //     });
-  //     keys.push(...response);
-  //   } while (cursor !== 0);
-  //   console.log(`Found backup keys: ${keys}`);
-  // } catch (error) {
-  //   console.error('Error scanning backup keys:', error);
-  // }
-
-  // return keys;
 
   async restoreFromBackup(backupKey: string): Promise<void> {
     const profileString: string = (await this.client.get(`user_backups:${backupKey}`))!;
