@@ -1,3 +1,4 @@
+import logger from '../utils/logger';
 import { Language, Message, UserData, UserProfile } from './UserProfile';
 import { UserStore } from './UserStore';
 
@@ -48,7 +49,7 @@ export class MemoryUserStore implements UserStore {
     throw new Error('Method not implemented.');
   }
   restoreFromBackup(backupKey: string): Promise<void> {
-    console.log(backupKey);
+    logger.debug(backupKey);
     throw new Error('Method not implemented.');
   }
 

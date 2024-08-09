@@ -2,6 +2,7 @@ import { createClient, RedisClientType } from 'redis';
 import { createObjectCsvWriter } from 'csv-writer';
 import fs from 'fs';
 import iconv from 'iconv-lite';
+import logger from '../utils/logger';
 
 interface Message {
   id: string;
@@ -25,19 +26,19 @@ class RedisUserStore {
     });
 
     this.client.on('error', (err) => {
-      console.error('Redis Client Error', err);
+      logger.error('Redis Client Error', err);
       throw new Error("Couldn't connect to Redis");
     });
   }
 
   async connect(): Promise<void> {
     await this.client.connect();
-    console.log('Connected to Redis');
+    logger.info('Connected to Redis');
   }
 
   async disconnect(): Promise<void> {
     await this.client.disconnect();
-    console.log('Disconnected from Redis');
+    logger.info('Disconnected from Redis');
   }
 
   // Fetch all user message keys
@@ -83,19 +84,17 @@ export const exportMessageHistoryToCsv = async (): Promise<string> => {
 
     // Write the records to the CSV
     await csvWriter.writeRecords(allMessages);
-    console.log('Message history exported to message_history.csv');
+    logger.info('Message history exported to message_history.csv');
 
     // Read the CSV file and re-encode it to UTF-8
     const csvContent = fs.readFileSync('message_history.csv');
     const utf8Content = iconv.encode(iconv.decode(csvContent, 'utf8'), 'utf8');
     const csvPath = 'message_history_utf8.csv';
     fs.writeFileSync(csvPath, utf8Content);
-    console.log(
-      'Message history re-encoded to UTF-8 in message_history_utf8.csv',
-    );
+    logger.info('Message history re-encoded to UTF-8 in message_history_utf8.csv');
     return csvPath;
   } catch (err) {
-    console.error('Error:', err);
+    logger.error('Error:', err);
     return '';
   } finally {
     await redisStore.disconnect();

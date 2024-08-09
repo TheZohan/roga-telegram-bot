@@ -12,9 +12,7 @@ const changeUserValue = async (userId: string) => {
   //await userStore.connect();
   const user: UserProfile = await userStore.getUser(userId);
   const now = new Date();
-  const timeDifference = moment.duration(
-    now.getTime() - new Date(user.lastTimeAskedForSatisfactionLevel!).getTime(),
-  );
+  const timeDifference = moment.duration(now.getTime() - new Date(user.lastTimeAskedForSatisfactionLevel!).getTime());
   console.log('timeDifference', timeDifference.asHours());
   const threeDaysAgo = new Date();
   threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);

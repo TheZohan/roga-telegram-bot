@@ -11,3 +11,6 @@ message_history*.*
 
 build
 dist
+
+*.txt
+*.csv

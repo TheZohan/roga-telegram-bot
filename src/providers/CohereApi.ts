@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { LLMProvider } from './LlmProvider';
 import { Message } from '../user/UserProfile';
+import logger from '../utils/logger';
 
 export default class CohereApi implements LLMProvider {
   private readonly CHAT_API_ENDPOINT = 'https://api.cohere.com/v1/chat';
@@ -15,11 +16,7 @@ export default class CohereApi implements LLMProvider {
     citation_quality: 'accurate', //  # O
   };
 
-  public async sendMessage(
-    systemMessage: string,
-    userMessage: string,
-    chatHistory: Message[],
-  ): Promise<string> {
+  public async sendMessage(systemMessage: string, userMessage: string, chatHistory: Message[]): Promise<string> {
     try {
       const response = await axios.post(
         this.CHAT_API_ENDPOINT,
@@ -44,7 +41,7 @@ export default class CohereApi implements LLMProvider {
         throw new Error('No response from Cohere API');
       }
     } catch (error) {
-      console.error('Error communicating with Cohere API:', error);
+      logger.error('Error communicating with Cohere API:', error);
       throw error;
     }
   }

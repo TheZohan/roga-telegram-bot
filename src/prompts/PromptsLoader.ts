@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { parse } from 'yaml';
 import Handlebars from 'handlebars';
+import logger from '../utils/logger';
 
 // Load prompts from a YAML file
 const loadPrompts = () => {
@@ -18,13 +19,12 @@ export const getPrompt = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   variables: Record<string, any>,
 ): string => {
-  const promptTemplate =
-    prompts['prefix'] + ' ' + prompts[action] + ' ' + prompts['suffix'];
+  const promptTemplate = prompts['prefix'] + ' ' + prompts[action] + ' ' + prompts['suffix'];
   if (!promptTemplate) {
     throw new Error(`Prompt for action "${action}" not found`);
   }
 
   const template = Handlebars.compile(promptTemplate);
-  console.log(`Prompt ${action}: ${template(variables)}`);
+  logger.debug(`Prompt ${action}: ${template(variables)}`);
   return template(variables);
 };
