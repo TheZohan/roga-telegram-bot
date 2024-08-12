@@ -113,16 +113,12 @@ export class MessageHandler {
       userProfile: userProfileString,
     });
     const res = await this.openAIClient.sendMessage(getDetailsFromMessagePrompt, message, []);
-    res.substring(1, res.length - 1);
-    console.log('res:', res);
-    let personalDetails;
     try {
-      userProfile.personalDetails = JSON.parse(res);
-      this.userStore.saveUser(userProfile);
+       userProfile.personalDetails = this.parseMarkdownToJson(res);
+       this.userStore.saveUser(userProfile);
     } catch (error) {
       console.log("can't parse message");
     }
-    console.log('res:', personalDetails);
   };
   
   decideOnNextAction = async (
@@ -299,4 +295,41 @@ export class MessageHandler {
       return input;
     }
   };
+ parseMarkdownToJson = (mdContent: string): Record<string, any> => {
+    const lines = mdContent.split('\n');
+    const result: Record<string, any> = {};
+    let currentSection: string | null = null;
+    let currentArray: string[] | null = null;
+
+    lines.forEach(line => {
+        line = line.trim();
+
+        if (line.startsWith('# ')) {
+            // Main section, start new JSON object
+            currentSection = this.camelCase(line.slice(2).trim());
+            result[currentSection] = {};
+        } else if (line.startsWith('## ')) {
+            // Subsection, start a new array
+            const subKey = this.camelCase(line.slice(3).trim());
+            currentArray = [];
+            result[currentSection as string][subKey] = currentArray;
+        } else if (line.startsWith('- ') && currentArray) {
+            // Item in an array
+            currentArray.push(line.slice(2).trim());
+        } else if (line.startsWith('**') && line.includes(':')) {
+            // Single attribute
+            const [keyPart, value] = line.split(':').map(s => s.trim());
+            const key = this.camelCase(keyPart.replace(/\*\*/g, '')); // Remove ** from keys and convert to camelCase
+            result[currentSection as string][key] = value;
+        }
+    });
+
+    return result;
+};
+
+camelCase = (input: string): string => {
+    return input.replace(/(?:^\w|[A-Z]|\b\w|\s+)/g, (match, index) =>
+        index === 0 ? match.toLowerCase() : match.toUpperCase().replace(/\s+/g, '')
+    );
+};
 }
