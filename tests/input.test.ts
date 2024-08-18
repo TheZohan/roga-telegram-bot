@@ -2,7 +2,7 @@ import { mock } from 'ts-jest-mocker';
 import { MessageHandler } from '../src/models/MessageHandler';
 import { RatingSelector } from '../src/TelegramBot/ratingSelector';
 import { UserStore } from '../src/user/UserStore';
-import { Language, PersonalDetails, UserContext, UserProfile } from '../src/user/UserProfile';
+import { Language, PersonalDetails, UserProfile } from '../src/user/UserProfile';
 import * as PromptsLoader from '../src/prompts/PromptsLoader';
 import { getPrompt } from '../src/prompts/PromptsLoader';
 import { OpenAIMock, createInput } from './OpenAiMock';
@@ -15,7 +15,6 @@ interface Responses {
   personalDetails?: PersonalDetails;
 }
 
-
 const openAIClientMock: OpenAIMock = new OpenAIMock();
 jest.mock('../src/providers/OpenAIClient', () => {
   return {
@@ -26,14 +25,12 @@ jest.mock('../src/providers/OpenAIClient', () => {
 });
 
 const originalGetPrompt = PromptsLoader.getPrompt;
-jest
-  .spyOn(PromptsLoader, 'getPrompt')
-  .mockImplementation((promptName, data) => {
-    delete data.userProfile;
-    delete data.randomTeacher;
-    delete data.answerLength;
-    return originalGetPrompt(promptName, data);
-  });
+jest.spyOn(PromptsLoader, 'getPrompt').mockImplementation((promptName, data) => {
+  delete data.userProfile;
+  delete data.randomTeacher;
+  delete data.answerLength;
+  return originalGetPrompt(promptName, data);
+});
 
 const setResponses = async (responses: Responses, user: UserProfile) => {
   const isMessageInChatContext = getPrompt('isMessageInChatContext', {});
@@ -45,20 +42,14 @@ const setResponses = async (responses: Responses, user: UserProfile) => {
   const notInContext = getPrompt('informTheUserThatTheMessageIsNotInContext', {
     lastMessage: responses.userMessage,
   });
-  openAIClientMock.setResponse(
-    createInput(notInContext, responses.userMessage),
-    responses.botMessage,
-  );
+  openAIClientMock.setResponse(createInput(notInContext, responses.userMessage), responses.botMessage);
 
   const combinedText = `${user.conversationSummary} User: ${responses.userMessage} Bot: ${responses.botMessage}`;
   const summeryPrompt = getPrompt('enhanceSummary', {
     combinedText: combinedText,
   });
 
-  openAIClientMock.setResponse(
-    createInput(summeryPrompt, responses.userMessage),
-    responses.summery,
-  );
+  openAIClientMock.setResponse(createInput(summeryPrompt, responses.userMessage), responses.summery);
 
   const personalDetails = getPrompt('getDetails', {});
   openAIClientMock.setResponse(
