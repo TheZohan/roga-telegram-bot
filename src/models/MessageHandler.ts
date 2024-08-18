@@ -1,8 +1,7 @@
 import { OpenAIClient } from '../providers/OpenAIClient';
 import { LLMProvider } from '../providers/LlmProvider';
-import { UserContext, UserProfile, Message, StandardRoles, Language, UserData } from '../user/UserProfile';
+import { UserProfile, Message, StandardRoles, Language, UserData } from '../user/UserProfile';
 import { getPrompt } from '../prompts/PromptsLoader';
-import { gzipSync } from 'zlib';
 import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
@@ -11,6 +10,8 @@ import moment from 'moment';
 import logger from '../utils/logger';
 
 const MESSAGES_HISTORY_LENGTH = 20;
+
+type SectionContent = Record<string, unknown>;
 
 export interface MessageData {
   userProfile: string;
@@ -31,12 +32,16 @@ export class MessageHandler {
 
   greetTheUser = async (userId: string): Promise<string> => {
     const userData: UserData = await this.userStore.getUserData(userId);
-    const userProfileString = this.compressMessage(JSON.stringify(userData.profile));
+    const userProfileString = JSON.stringify(userData.profile);
     const defaultLanguage: keyof typeof Language = process.env.LANGUAGE! as keyof typeof Language;
     const language: string = Language[defaultLanguage];
+    logger.debug('language', language);
+    const askForTheirNameString =
+      userData.profile.personalDetails.firstName == undefined ? 'you have to ask for the users name' : '';
     const systemMessage = getPrompt('greeting', {
       langauge: language,
       userProfile: userProfileString,
+      askForTheirName: askForTheirNameString,
     });
     const response = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
     this.updateMessageHistory(userData, StandardRoles.assistant, response);
@@ -44,19 +49,13 @@ export class MessageHandler {
     return response;
   };
 
-  handleMessage = async (userId: string, userMessage: string, ctx?: UserContext): Promise<string> => {
+  handleMessage = async (userId: string, userMessage: string): Promise<string> => {
     logger.debug('Handling message', userMessage, 'for user', userId);
     const userData = await this.userStore.getUserData(userId);
     userData.profile = {
       ...userData.profile,
       username: userId,
     };
-    if (ctx) {
-      userData.profile.personalDetails = {
-        firstName: ctx.firstName,
-        lastName: ctx.lastName,
-      };
-    }
     this.updateMessageHistory(userData, StandardRoles.user, userMessage);
     // Stage 1: Check if message is in the context of spiritual journey or personal growth.
     const isMessageInContext = await this.isMessageInChatContext(userData, userMessage);
@@ -78,8 +77,22 @@ export class MessageHandler {
         botReply = await this.respondToUser(userData, userMessage);
         this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
         this.enhanceSummary(userData.profile, userMessage, botReply);
+        this.getDetailsFromMessage(userData.profile, userMessage);
     }
     return botReply;
+  };
+  getDetailsFromMessage = async (userProfile: UserProfile, message: string) => {
+    const userProfileString = JSON.stringify(userProfile);
+    const getDetailsFromMessagePrompt = getPrompt('getDetails', {
+      userProfile: userProfileString,
+    });
+    const res = await this.openAIClient.sendMessage(getDetailsFromMessagePrompt, message, []);
+    try {
+      userProfile.personalDetails = this.parseMarkdownToJson(res);
+      this.userStore.saveUser(userProfile);
+    } catch (error) {
+      console.log("can't parse message");
+    }
   };
 
   decideOnNextAction = async (userData: UserData, lastUserMessage: string): Promise<string> => {
@@ -187,16 +200,42 @@ export class MessageHandler {
 
     this.userStore.addMessage(message);
   };
-  compressMessage = (input: string): string => {
-    try {
-      // Convert the input string to a buffer using UTF-8 encoding
-      const buffer = Buffer.from(input, 'utf-8');
-      const compressed = gzipSync(buffer);
-      // Convert the compressed buffer to a base64-encoded string
-      const compressedBase64 = compressed.toString('base64');
-      return compressedBase64;
-    } catch (error) {
-      return input;
-    }
+
+  parseMarkdownToJson = (mdContent: string): Record<string, SectionContent> => {
+    const lines = mdContent.split('\n');
+    const result: Record<string, SectionContent> = {};
+    let currentSection: string | null = null;
+    let currentArray: string[] | null = null;
+
+    lines.forEach((line) => {
+      line = line.trim();
+
+      if (line.startsWith('# ')) {
+        // Main section, start new JSON object
+        currentSection = this.camelCase(line.slice(2).trim());
+        result[currentSection] = {};
+      } else if (line.startsWith('## ')) {
+        // Subsection, start a new array
+        const subKey = this.camelCase(line.slice(3).trim());
+        currentArray = [];
+        result[currentSection as string][subKey] = currentArray;
+      } else if (line.startsWith('- ') && currentArray) {
+        // Item in an array
+        currentArray.push(line.slice(2).trim());
+      } else if (line.startsWith('**') && line.includes(':')) {
+        // Single attribute
+        const [keyPart, value] = line.split(':').map((s) => s.trim());
+        const key = this.camelCase(keyPart.replace(/\*\*/g, '')); // Remove ** from keys and convert to camelCase
+        result[currentSection as string][key] = value;
+      }
+    });
+
+    return result;
+  };
+
+  camelCase = (input: string): string => {
+    return input.replace(/(?:^\w|[A-Z]|\b\w|\s+)/g, (match, index) =>
+      index === 0 ? match.toLowerCase() : match.toUpperCase().replace(/\s+/g, ''),
+    );
   };
 }

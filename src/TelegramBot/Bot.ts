@@ -4,7 +4,6 @@ import { UserStore, createUserStore } from '../user/UserStore';
 import { setLanguageCommand } from './language';
 import { createClearConversationHistoryCommand, restoreConversationHistoryCommand } from './ConversationHistory';
 import i18n from '../utils/il18n';
-import { UserContext } from '../user/UserProfile';
 import { RatingSelector } from './ratingSelector';
 import { MessageHandler } from '../models/MessageHandler';
 import logger from '../utils/logger';
@@ -53,15 +52,9 @@ export const initializeBot = async () => {
     const userId: string = ctx.from?.id.toString();
 
     try {
-      const userContext: UserContext = {
-        firstName: ctx.from.first_name,
-        lastName: ctx.from.last_name || '',
-        username: ctx.from.username || '',
-      };
-
       const ratingSelector = new RatingSelector(bot, ctx);
       const messageHandler = new MessageHandler(userStore, ratingSelector);
-      const botReply = await messageHandler.handleMessage(userId, userMessage, userContext);
+      const botReply = await messageHandler.handleMessage(userId, userMessage);
       if (botReply) {
         await ctx.reply(botReply);
       }

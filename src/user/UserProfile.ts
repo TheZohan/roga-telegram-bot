@@ -39,12 +39,6 @@ export interface Rating {
   level: number;
 }
 
-export interface UserContext {
-  firstName: string;
-  lastName: string;
-  username: string;
-}
-
 export interface PersonalDetails {
   firstName?: string;
   lastName?: string;
