@@ -1,22 +1,17 @@
 import { OpenAIClient } from '../providers/OpenAIClient';
 import { LLMProvider } from '../providers/LlmProvider';
-import {
-  UserContext,
-  UserProfile,
-  Message,
-  StandardRoles,
-  Language,
-  PersonalDetails,
-} from '../user/UserProfile';
+import { UserProfile, Message, StandardRoles, Language, UserData } from '../user/UserProfile';
 import { getPrompt } from '../prompts/PromptsLoader';
-import { gzipSync } from 'zlib';
 import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
 import { createSatisfactionLevelSelector } from './SatisfactioLevelSelector';
 import moment from 'moment';
+import logger from '../utils/logger';
 
 const MESSAGES_HISTORY_LENGTH = 20;
+
+type SectionContent = Record<string, unknown>;
 
 export interface MessageData {
   userProfile: string;
@@ -25,10 +20,10 @@ export interface MessageData {
 }
 export class MessageHandler {
   userStore: UserStore;
-  ratingSelector: RatingSelector;
+  ratingSelector?: RatingSelector;
   openAIClient: LLMProvider;
 
-  constructor(userStore: UserStore, ratingSelector: RatingSelector) {
+  constructor(userStore: UserStore, ratingSelector?: RatingSelector) {
     this.userStore = userStore;
     this.ratingSelector = ratingSelector;
     this.openAIClient = new OpenAIClient();
@@ -36,74 +31,53 @@ export class MessageHandler {
   }
 
   greetTheUser = async (userId: string): Promise<string> => {
-    const userProfile: UserProfile = await this.userStore.getUser(userId);
-    const userProfileString = this.compressMessage(JSON.stringify(userProfile));
+    const userData: UserData = await this.userStore.getUserData(userId);
+    const userProfileString = JSON.stringify(userData.profile);
     const defaultLanguage: keyof typeof Language = process.env.LANGUAGE! as keyof typeof Language;
     const language: string = Language[defaultLanguage];
-
+    logger.debug('language', language);
     const askForTheirNameString =
-      userProfile.personalDetails.firstName == undefined ? 'you have to ask for the users name' : '';
-    console.log('Language', language);
+      userData.profile.personalDetails.firstName == undefined ? 'you have to ask for the users name' : '';
     const systemMessage = getPrompt('greeting', {
       langauge: language,
       userProfile: userProfileString,
       askForTheirName: askForTheirNameString,
     });
-    const response = await this.openAIClient.sendMessage(systemMessage, '');
-    this.updateMessageHistory(userProfile, StandardRoles.assistant, response);
-    this.userStore.saveUser(userProfile);
+    const response = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
+    this.updateMessageHistory(userData, StandardRoles.assistant, response);
+    this.userStore.saveUser(userData.profile);
     return response;
   };
 
-  handleMessage = async (
-    userId: string,
-    userMessage: string,
-  ): Promise<string> => {
-    console.log('Handling message', userMessage, 'for user', userId);
-    let userProfile = await this.userStore.getUser(userId);
-    userProfile = {
-      ...userProfile,
+  handleMessage = async (userId: string, userMessage: string): Promise<string> => {
+    logger.debug('Handling message', userMessage, 'for user', userId);
+    const userData = await this.userStore.getUserData(userId);
+    userData.profile = {
+      ...userData.profile,
       username: userId,
     };
-    this.updateMessageHistory(userProfile, StandardRoles.user, userMessage);
-    console.log('messege handler');
-    // updateDetails(userProfile, ctx, userMessage, StandardRoles.user);
-
+    this.updateMessageHistory(userData, StandardRoles.user, userMessage);
     // Stage 1: Check if message is in the context of spiritual journey or personal growth.
-    const isMessageInContext = await this.isMessageInChatContext(
-      userProfile,
-      userMessage,
-    );
+    const isMessageInContext = await this.isMessageInChatContext(userData, userMessage);
     if (!isMessageInContext) {
-      return this.informTheUserThatTheMessageIsNotInContext(
-        userProfile,
-        userMessage,
-      );
+      logger.info('The message', userMessage, 'is not in the context of the chat');
+      return this.informTheUserThatTheMessageIsNotInContext(userData, userMessage);
     }
     let botReply: string;
-    const nextAction = await this.decideOnNextAction(userProfile, userMessage);
-    console.log('nextAction:', nextAction);
+    const nextAction = await this.decideOnNextAction(userData, userMessage);
+    logger.debug('nextAction:', nextAction);
     switch (nextAction) {
       case '[CheckSatisfactionLevel]':
-        await createSatisfactionLevelSelector(
-          this,
-          userMessage,
-          this.userStore,
-          this.ratingSelector,
-        );
-        userProfile.lastTimeAskedForSatisfactionLevel = new Date();
-        this.userStore.saveUser(userProfile);
+        await createSatisfactionLevelSelector(this, userMessage, this.userStore, this.ratingSelector!);
+        userData.profile.lastTimeAskedForSatisfactionLevel = new Date();
+        this.userStore.saveUser(userData.profile);
         botReply = '';
         break;
       default:
-        botReply = await this.respondToUser(userProfile, userMessage);
-        this.updateMessageHistory(
-          userProfile,
-          StandardRoles.assistant,
-          botReply,
-        );
-        this.enhanceSummary(userProfile, userMessage, botReply);
-        this.getDetailsFromMessage(userProfile, userMessage)
+        botReply = await this.respondToUser(userData, userMessage);
+        this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
+        this.enhanceSummary(userData.profile, userMessage, botReply);
+        this.getDetailsFromMessage(userData.profile, userMessage);
     }
     return botReply;
   };
@@ -114,94 +88,57 @@ export class MessageHandler {
     });
     const res = await this.openAIClient.sendMessage(getDetailsFromMessagePrompt, message, []);
     try {
-       userProfile.personalDetails = this.parseMarkdownToJson(res);
-       this.userStore.saveUser(userProfile);
+      userProfile.personalDetails = this.parseMarkdownToJson(res);
+      this.userStore.saveUser(userProfile);
     } catch (error) {
       console.log("can't parse message");
     }
   };
-  
-  decideOnNextAction = async (
-    userProfile: UserProfile,
-    lastUserMessage: string,
-  ): Promise<string> => {
-    const userProfileString = JSON.stringify(userProfile);
+
+  decideOnNextAction = async (userData: UserData, lastUserMessage: string): Promise<string> => {
+    const userProfile = userData.profile;
+    const userProfileString = JSON.stringify(userData.profile);
     const now = new Date();
     let timeDifference = moment.duration(1000);
     if (userProfile.lastTimeAskedForSatisfactionLevel) {
       timeDifference = moment.duration(
-        now.getTime() -
-          new Date(userProfile.lastTimeAskedForSatisfactionLevel).getTime(),
+        now.getTime() - new Date(userProfile.lastTimeAskedForSatisfactionLevel).getTime(),
       );
     }
-    console.log('TD', timeDifference.asHours());
     const systemMessage = getPrompt('decideOnNextAction', {
       lastUserMessage,
       lastTimeAskedForSatisfactionLevel: timeDifference.asHours(),
       userProfile: userProfileString,
     });
-    const botResponse: string = await this.openAIClient.sendMessage(
-      systemMessage,
-      '',
-      userProfile.messageHistory,
-    );
+    const botResponse: string = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
     return botResponse;
   };
 
-  isMessageInChatContext = async (
-    userProfile: UserProfile,
-    message: string,
-  ): Promise<boolean> => {
-    const userProfileString = JSON.stringify(userProfile);
+  isMessageInChatContext = async (userData: UserData, message: string): Promise<boolean> => {
+    const userProfileString = JSON.stringify(userData.profile);
     const systemMessage = getPrompt('isMessageInChatContext', {
       userProfile: userProfileString,
     });
-    const botResponse: string = await this.openAIClient.sendMessage(
-      systemMessage,
-      message,
-      userProfile.messageHistory,
-    );
+    const botResponse: string = await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
 
-    const yesRegex = /\byes\b/i; // \b ensures word boundaries, i makes it case-insensitive
-    const noRegex = /\bno\b/i; // \b ensures word boundaries, i makes it case-insensitive
     let result: boolean = true;
-    if (yesRegex.test(botResponse)) {
+    if (botResponse == '1') {
       result = true;
-    } else if (noRegex.test(botResponse)) {
+    } else if (botResponse == '0') {
       result = false;
     } else {
-      console.log('The bot did not return yes or no!');
+      logger.error('The bot did not return 1 or 0!');
     }
-    console.log(result);
-    console.log('isMessageInChatContext:', result);
     return result;
   };
 
-  informTheUserThatTheMessageIsNotInContext = async (
-    userProfile: UserProfile,
-    message: string,
-  ): Promise<string> => {
-    const userProfileString = JSON.stringify(userProfile);
-    const systemMessage = getPrompt(
-      'informTheUserThatTheMessageIsNotInContext',
-      { userProfile: userProfileString, lastMessage: message },
-    );
-    const botResponse: string = await this.openAIClient.sendMessage(
-      systemMessage,
-      message,
-    );
-    return botResponse;
-  };
-
-  reccomendNextAction = async (userProfile: UserProfile): Promise<string> => {
-    const userProfileString = JSON.stringify(userProfile);
-    const systemMessage = getPrompt('ReccomendNextAction', {
+  informTheUserThatTheMessageIsNotInContext = async (userData: UserData, message: string): Promise<string> => {
+    const userProfileString = JSON.stringify(userData.profile);
+    const systemMessage = getPrompt('informTheUserThatTheMessageIsNotInContext', {
       userProfile: userProfileString,
+      lastMessage: message,
     });
-    const botResponse: string = await this.openAIClient.sendMessage(
-      systemMessage,
-      '',
-    );
+    const botResponse: string = await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
     return botResponse;
   };
 
@@ -209,12 +146,9 @@ export class MessageHandler {
     return Math.floor(Math.random() * (max - min + 1)) + min;
   }
 
-  respondToUser = async (
-    userProfile: UserProfile,
-    message: string,
-  ): Promise<string> => {
+  respondToUser = async (userData: UserData, message: string): Promise<string> => {
     // Forward the message to OpenAI and get a response
-    const userProfileString = JSON.stringify(userProfile);
+    const userProfileString = JSON.stringify(userData.profile);
     const teachers = [
       'Eckhart Tolle',
       'Thich Nhat Hanh',
@@ -239,97 +173,69 @@ export class MessageHandler {
       randomTeacher: randomTeacher,
       answerLength: answerLength,
     });
-    console.log(userProfile);
-    console.log(await this.userStore.getUser(userProfile.id));
-    return await this.openAIClient.sendMessage(
-      systemMessage,
-      message,
-      userProfile.messageHistory,
-    );
+    return await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
   };
 
-  enhanceSummary = async (
-    profile: UserProfile,
-    userMessage: string,
-    botResponse: string,
-  ) => {
+  enhanceSummary = async (profile: UserProfile, userMessage: string, botResponse: string) => {
     const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`;
     const systemMessage = getPrompt('enhanceSummary', {
       combinedText: combinedText,
     });
-    profile.conversationSummary = await this.openAIClient.sendMessage(
-      systemMessage,
-      '',
-    );
+    profile.conversationSummary = await this.openAIClient.sendMessage(systemMessage, '', []);
     this.userStore.saveUser(profile);
   };
 
-  updateMessageHistory = (
-    profile: UserProfile,
-    role: StandardRoles,
-    newMessage: string,
-  ): void => {
+  updateMessageHistory = (UserData: UserData, role: StandardRoles, newMessage: string): void => {
     const message: Message = {
       id: uuidv4(),
-      userId: profile.id,
+      userId: UserData.profile.id,
       role: role,
       timestamp: new Date(),
       message: newMessage,
     };
-    profile.messageHistory.push(message);
-    if (profile.messageHistory.length > MESSAGES_HISTORY_LENGTH) {
-      profile.messageHistory.shift();
+    UserData.messages.push(message);
+    if (UserData.messages.length > MESSAGES_HISTORY_LENGTH) {
+      UserData.messages.shift();
     }
 
     this.userStore.addMessage(message);
   };
-  compressMessage = (input: string): string => {
-    try {
-      // Convert the input string to a buffer using UTF-8 encoding
-      const buffer = Buffer.from(input, 'utf-8');
-      const compressed = gzipSync(buffer);
-      // Convert the compressed buffer to a base64-encoded string
-      const compressedBase64 = compressed.toString('base64');
-      return compressedBase64;
-    } catch (error) {
-      return input;
-    }
-  };
- parseMarkdownToJson = (mdContent: string): Record<string, any> => {
+
+  parseMarkdownToJson = (mdContent: string): Record<string, SectionContent> => {
     const lines = mdContent.split('\n');
-    const result: Record<string, any> = {};
+    const result: Record<string, SectionContent> = {};
     let currentSection: string | null = null;
     let currentArray: string[] | null = null;
 
-    lines.forEach(line => {
-        line = line.trim();
+    lines.forEach((line) => {
+      line = line.trim();
 
-        if (line.startsWith('# ')) {
-            // Main section, start new JSON object
-            currentSection = this.camelCase(line.slice(2).trim());
-            result[currentSection] = {};
-        } else if (line.startsWith('## ')) {
-            // Subsection, start a new array
-            const subKey = this.camelCase(line.slice(3).trim());
-            currentArray = [];
-            result[currentSection as string][subKey] = currentArray;
-        } else if (line.startsWith('- ') && currentArray) {
-            // Item in an array
-            currentArray.push(line.slice(2).trim());
-        } else if (line.startsWith('**') && line.includes(':')) {
-            // Single attribute
-            const [keyPart, value] = line.split(':').map(s => s.trim());
-            const key = this.camelCase(keyPart.replace(/\*\*/g, '')); // Remove ** from keys and convert to camelCase
-            result[currentSection as string][key] = value;
-        }
+      if (line.startsWith('# ')) {
+        // Main section, start new JSON object
+        currentSection = this.camelCase(line.slice(2).trim());
+        result[currentSection] = {};
+      } else if (line.startsWith('## ')) {
+        // Subsection, start a new array
+        const subKey = this.camelCase(line.slice(3).trim());
+        currentArray = [];
+        result[currentSection as string][subKey] = currentArray;
+      } else if (line.startsWith('- ') && currentArray) {
+        // Item in an array
+        currentArray.push(line.slice(2).trim());
+      } else if (line.startsWith('**') && line.includes(':')) {
+        // Single attribute
+        const [keyPart, value] = line.split(':').map((s) => s.trim());
+        const key = this.camelCase(keyPart.replace(/\*\*/g, '')); // Remove ** from keys and convert to camelCase
+        result[currentSection as string][key] = value;
+      }
     });
 
     return result;
-};
+  };
 
-camelCase = (input: string): string => {
+  camelCase = (input: string): string => {
     return input.replace(/(?:^\w|[A-Z]|\b\w|\s+)/g, (match, index) =>
-        index === 0 ? match.toLowerCase() : match.toUpperCase().replace(/\s+/g, '')
+      index === 0 ? match.toLowerCase() : match.toUpperCase().replace(/\s+/g, ''),
     );
-};
+  };
 }

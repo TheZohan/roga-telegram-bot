@@ -1,11 +1,9 @@
 import { Context, Markup, Telegraf } from 'telegraf';
 import { UserStore } from '../user/UserStore';
 import moment from 'moment';
+import logger from '../utils/logger';
 
-export const createClearConversationHistoryCommand = async (
-  bot: Telegraf,
-  userStore: UserStore,
-) => {
+export const createClearConversationHistoryCommand = async (bot: Telegraf, userStore: UserStore) => {
   bot.command('clear', (ctx: Context) => {
     ctx.reply(
       'Are you sure you want to clear the chat history?',
@@ -29,15 +27,12 @@ export const createClearConversationHistoryCommand = async (
   });
 };
 
-export const restoreConversationHistoryCommand = async (
-  bot: Telegraf,
-  userStore: UserStore,
-) => {
+export const restoreConversationHistoryCommand = async (bot: Telegraf, userStore: UserStore) => {
   // Command to set language
   bot.command('restore', async (ctx: Context) => {
     const userId = ctx.from?.id.toString();
     if (!userId) {
-      console.error('User ID is empty');
+      logger.error('User ID is empty');
       return;
     }
     const backupList: string[] = await userStore.getBackups(userId);
@@ -52,9 +47,6 @@ export const restoreConversationHistoryCommand = async (
         ctx.reply(`Restored ${backupKey}`);
       });
     });
-    ctx.reply(
-      'Which backup do you want to restore?',
-      Markup.inlineKeyboard(backupButtons),
-    );
+    ctx.reply('Which backup do you want to restore?', Markup.inlineKeyboard(backupButtons));
   });
 };

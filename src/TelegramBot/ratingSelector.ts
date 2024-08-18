@@ -1,10 +1,7 @@
 import { Context, Markup, Telegraf } from 'telegraf';
+import logger from '../utils/logger';
 
-export type SetSelectionCallback = (
-  level: string,
-  userId: string,
-  ctx: Context,
-) => Promise<void>;
+export type SetSelectionCallback = (level: string, userId: string, ctx: Context) => Promise<void>;
 
 export interface TelegramSelector {
   createSelector(
@@ -33,14 +30,11 @@ export class RatingSelector implements TelegramSelector {
     setSelectionCallback: SetSelectionCallback,
   ) => {
     if (values.length > 8) {
-      console.log(`Telegram can't add more than 8 values to a selector`);
+      logger.error(`Telegram can't add more than 8 values to a selector`);
     }
 
     const selectorMarkup = values.map((value, index) => {
-      return Markup.button.callback(
-        `${displayValues.at(index)}`,
-        `rating_${subjectId}_${value}`,
-      );
+      return Markup.button.callback(`${displayValues.at(index)}`, `rating_${subjectId}_${value}`);
     });
 
     this.ctx.reply(displayText, Markup.inlineKeyboard(selectorMarkup));

@@ -1,6 +1,7 @@
 import { createClient, RedisClientType } from 'redis';
 import { UserStore } from './UserStore';
-import { Language, Message, UserProfile } from './UserProfile';
+import { Language, Message, UserData, UserProfile } from './UserProfile';
+import logger from '../utils/logger';
 
 const MAX_HISTORY = 10; // Default max history
 
@@ -19,9 +20,14 @@ export class RedisUserStore implements UserStore {
     });
 
     this.client.on('error', (err) => {
-      console.error('Redis Client Error', err);
+      logger.error('Redis Client Error', err);
       throw new Error("Couldn't connect to Redis");
     });
+  }
+  async getUserData(userId: string): Promise<UserData> {
+    const userProfile = await this.getUser(userId);
+    const messages = await this.getMessageHistory(userId);
+    return { profile: userProfile, messages: messages };
   }
 
   async connect(): Promise<void> {
@@ -38,7 +44,6 @@ export class RedisUserStore implements UserStore {
       ? JSON.parse(data)
       : ({
           id: userId,
-          messageHistory: [],
           satisfactionLevel: [],
           personalDetails: {},
           language: Language.heb,
@@ -46,10 +51,7 @@ export class RedisUserStore implements UserStore {
   }
 
   async addMessage(message: Message): Promise<void> {
-    await this.client.rPush(
-      `messages:${message.userId}`,
-      JSON.stringify(message),
-    );
+    await this.client.rPush(`messages:${message.userId}`, JSON.stringify(message));
   }
 
   // Fetch all user message keys
@@ -58,7 +60,7 @@ export class RedisUserStore implements UserStore {
   }
 
   async getMessageHistory(userId: string): Promise<Message[]> {
-    const messages = await this.client.lRange(`messages:${userId}`, 0, -1);
+    const messages = await this.client.lRange(`messages:${userId}`, -20, -1);
     return messages.map((message) => JSON.parse(message));
   }
 
@@ -76,15 +78,10 @@ export class RedisUserStore implements UserStore {
         // Trim the list to maintain max number of backups
         await this.client.lTrim(backupListKey, 0, MAX_HISTORY - 1);
         // Delete the current message history
-        const emptyProfile: UserProfile = {
-          id: userProfile.id,
-          language: Language.heb,
-          personalDetails: {},
-          messageHistory: [],
-          satisfactionLevel: [],
-        };
-        await this.saveUser(emptyProfile);
-        console.log(`User profile for user ${userId} backed up and cleared.`);
+        await this.client.del(`messages:${userId}`);
+        userProfile.conversationSummary = '';
+        await this.saveUser(userProfile);
+        logger.info(`User profile for user ${userId} backed up and cleared.`);
       }
       const messageKey = `messages:${userId}`;
       const messageHistory = await this.client.lRange(messageKey, 0, -1);
@@ -102,14 +99,12 @@ export class RedisUserStore implements UserStore {
         // Delete the current message history
         await this.client.del(messageKey);
 
-        console.log(
-          `Message history for user ${userId} backed up and cleared.`,
-        );
+        logger.info(`Message history for user ${userId} backed up and cleared.`);
       } else {
-        console.log(`No message history found for user ${userId}.`);
+        logger.info(`No message history found for user ${userId}.`);
       }
     } catch (error: unknown) {
-      console.error('Error clearing and backing up message history:', error);
+      logger.error('Error clearing and backing up message history:', error);
     }
   }
 
@@ -123,37 +118,9 @@ export class RedisUserStore implements UserStore {
       return backupName;
     });
   }
-  // const keys: string[] = [];
-  // let cursor = 0;
-
-  // try {
-  //   do {
-  //     const result = await this.client.scan(cursor, {
-  //       MATCH: `user_backups:*`,
-  //       COUNT: 100,
-  //     });
-
-  //     cursor = result.cursor;
-  //     const response: string[] = result.keys.map((backupName: string) => {
-  //       const prefix = 'user_backups:';
-  //       if (backupName.startsWith(prefix)) {
-  //         return backupName.replace(prefix, '');
-  //       }
-  //       return backupName;
-  //     });
-  //     keys.push(...response);
-  //   } while (cursor !== 0);
-  //   console.log(`Found backup keys: ${keys}`);
-  // } catch (error) {
-  //   console.error('Error scanning backup keys:', error);
-  // }
-
-  // return keys;
 
   async restoreFromBackup(backupKey: string): Promise<void> {
-    const profileString: string = (await this.client.get(
-      `user_backups:${backupKey}`,
-    ))!;
+    const profileString: string = (await this.client.get(`user_backups:${backupKey}`))!;
     const profile: UserProfile = JSON.parse(profileString) as UserProfile;
     this.saveUser(profile);
   }
