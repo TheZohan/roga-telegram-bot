@@ -28,22 +28,10 @@ const originalGetPrompt = PromptsLoader.getPrompt;
 jest.spyOn(PromptsLoader, 'getPrompt').mockImplementation((promptName, data) => {
   delete data.userProfile;
   delete data.randomTeacher;
-  delete data.answerLength;
   return originalGetPrompt(promptName, data);
 });
 
 const setResponses = async (responses: Responses, user: UserProfile) => {
-  const isMessageInChatContext = getPrompt('isMessageInChatContext', {});
-  openAIClientMock.setResponse(
-    createInput(isMessageInChatContext, responses.userMessage),
-    responses.inContext ? '1' : '0',
-  );
-
-  const notInContext = getPrompt('informTheUserThatTheMessageIsNotInContext', {
-    lastMessage: responses.userMessage,
-  });
-  openAIClientMock.setResponse(createInput(notInContext, responses.userMessage), responses.botMessage);
-
   const combinedText = `${user.conversationSummary} User: ${responses.userMessage} Bot: ${responses.botMessage}`;
   const summeryPrompt = getPrompt('enhanceSummary', {
     combinedText: combinedText,
@@ -57,12 +45,10 @@ const setResponses = async (responses: Responses, user: UserProfile) => {
     '"' + JSON.stringify(responses.personalDetails + '"'),
   );
 
-  if (responses.inContext) {
-    openAIClientMock.setResponse(
-      createInput(getPrompt('respondToUser', {}), responses.userMessage),
-      responses.botMessage,
-    );
-  }
+  openAIClientMock.setResponse(
+    createInput(getPrompt('respondToUser', {}), responses.userMessage),
+    responses.botMessage,
+  );
 };
 
 // create message handler
@@ -100,18 +86,6 @@ describe('basic tests', () => {
       inContext: true,
       summery: 'The user said hi and I responded with hello how can I help you today',
       personalDetails: userProfile.personalDetails,
-    };
-    setResponses(responses, userProfile);
-    expect(messageHandler.handleMessage('yogev', responses.userMessage)).resolves.toBe(responses.botMessage);
-  });
-
-  it('Should replay that the message not in context, recived : Write me a function in c ', async () => {
-    responses = {
-      userMessage: 'Write me a function in c',
-      botMessage: 'not in context',
-      personalDetails: userProfile.personalDetails,
-      inContext: false,
-      summery: 'the user wanted a function in c that is not related to the converstion',
     };
     setResponses(responses, userProfile);
     expect(messageHandler.handleMessage('yogev', responses.userMessage)).resolves.toBe(responses.botMessage);
