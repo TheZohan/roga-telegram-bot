@@ -5,19 +5,12 @@ import { getPrompt } from '../prompts/PromptsLoader';
 import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
-import { createSatisfactionLevelSelector } from './SatisfactioLevelSelector';
-import moment from 'moment';
 import logger from '../utils/logger';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
 type SectionContent = Record<string, unknown>;
 
-export interface MessageData {
-  userProfile: string;
-  randomTeacher: string;
-  answerLength: number;
-}
 export class MessageHandler {
   userStore: UserStore;
   ratingSelector?: RatingSelector;
@@ -57,30 +50,13 @@ export class MessageHandler {
       username: userId,
     };
     this.updateMessageHistory(userData, StandardRoles.user, userMessage);
-    // Stage 1: Check if message is in the context of spiritual journey or personal growth.
-    const isMessageInContext = await this.isMessageInChatContext(userData, userMessage);
-    if (!isMessageInContext) {
-      logger.info('The message', userMessage, 'is not in the context of the chat');
-      return this.informTheUserThatTheMessageIsNotInContext(userData, userMessage);
-    }
-    let botReply: string;
-    const nextAction = await this.decideOnNextAction(userData, userMessage);
-    logger.debug('nextAction:', nextAction);
-    switch (nextAction) {
-      case '[CheckSatisfactionLevel]':
-        await createSatisfactionLevelSelector(this, userMessage, this.userStore, this.ratingSelector!);
-        userData.profile.lastTimeAskedForSatisfactionLevel = new Date();
-        this.userStore.saveUser(userData.profile);
-        botReply = '';
-        break;
-      default:
-        botReply = await this.respondToUser(userData, userMessage);
-        this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
-        this.enhanceSummary(userData.profile, userMessage, botReply);
-        this.getDetailsFromMessage(userData.profile, userMessage);
-    }
+    const botReply = await this.respondToUser(userData, userMessage);
+    this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
+    this.enhanceSummary(userData.profile, userMessage, botReply);
+    this.getDetailsFromMessage(userData.profile, userMessage);
     return botReply;
   };
+
   getDetailsFromMessage = async (userProfile: UserProfile, message: string) => {
     const userProfileString = JSON.stringify(userProfile);
     const getDetailsFromMessagePrompt = getPrompt('getDetails', {
@@ -93,53 +69,6 @@ export class MessageHandler {
     } catch (error) {
       console.log("can't parse message");
     }
-  };
-
-  decideOnNextAction = async (userData: UserData, lastUserMessage: string): Promise<string> => {
-    const userProfile = userData.profile;
-    const userProfileString = JSON.stringify(userData.profile);
-    const now = new Date();
-    let timeDifference = moment.duration(1000);
-    if (userProfile.lastTimeAskedForSatisfactionLevel) {
-      timeDifference = moment.duration(
-        now.getTime() - new Date(userProfile.lastTimeAskedForSatisfactionLevel).getTime(),
-      );
-    }
-    const systemMessage = getPrompt('decideOnNextAction', {
-      lastUserMessage,
-      lastTimeAskedForSatisfactionLevel: timeDifference.asHours(),
-      userProfile: userProfileString,
-    });
-    const botResponse: string = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
-    return botResponse;
-  };
-
-  isMessageInChatContext = async (userData: UserData, message: string): Promise<boolean> => {
-    const userProfileString = JSON.stringify(userData.profile);
-    const systemMessage = getPrompt('isMessageInChatContext', {
-      userProfile: userProfileString,
-    });
-    const botResponse: string = await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
-
-    let result: boolean = true;
-    if (botResponse == '1') {
-      result = true;
-    } else if (botResponse == '0') {
-      result = false;
-    } else {
-      logger.error('The bot did not return 1 or 0!');
-    }
-    return result;
-  };
-
-  informTheUserThatTheMessageIsNotInContext = async (userData: UserData, message: string): Promise<string> => {
-    const userProfileString = JSON.stringify(userData.profile);
-    const systemMessage = getPrompt('informTheUserThatTheMessageIsNotInContext', {
-      userProfile: userProfileString,
-      lastMessage: message,
-    });
-    const botResponse: string = await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
-    return botResponse;
   };
 
   getRandomNumber(min: number, max: number): number {
@@ -167,11 +96,11 @@ export class MessageHandler {
       'Laozi',
     ];
     const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];
-    const answerLength = this.getRandomNumber(200, 400);
+    //const answerLength = this.getRandomNumber(200, 400);
     const systemMessage = getPrompt('respondToUser', {
       userProfile: userProfileString,
       randomTeacher: randomTeacher,
-      answerLength: answerLength,
+      //answerLength: answerLength,
     });
     return await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
   };
