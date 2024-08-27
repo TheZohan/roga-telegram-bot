@@ -96,11 +96,9 @@ export class MessageHandler {
       'Laozi',
     ];
     const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];
-    //const answerLength = this.getRandomNumber(200, 400);
     const systemMessage = getPrompt('respondToUser', {
       userProfile: userProfileString,
       randomTeacher: randomTeacher,
-      //answerLength: answerLength,
     });
     return await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
   };
