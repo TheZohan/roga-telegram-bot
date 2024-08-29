@@ -8,7 +8,7 @@ import { RatingSelector } from './ratingSelector';
 import { MessageHandler } from '../models/MessageHandler';
 import logger from '../utils/logger';
 
-export const initializeBot = async () => {
+export const initializeBot = async (): Promise<Telegraf> => {
   const telegramToken = process.env.TELEGRAM_TOKEN!;
   const bot: Telegraf = new Telegraf(telegramToken);
 
@@ -72,6 +72,8 @@ export const initializeBot = async () => {
 
   bot.launch().then(() => {
     logger.info('Bot launched');
+    //const scheduledMessages = new ScheduledMessages(bot, userStore);
+    //scheduledMessages.startScheduledMessages();
   });
 
   // Gracefully close the connection when the process exits
@@ -83,4 +85,6 @@ export const initializeBot = async () => {
     userStore.disconnect();
     bot.stop();
   });
+
+  return bot;
 };

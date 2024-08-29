@@ -13,6 +13,7 @@ export interface UserStore {
   getBackups(userId: string): Promise<string[]>;
   restoreFromBackup(backupKey: string): Promise<void>;
   disconnect(): void;
+  getActiveUsers(): Promise<UserProfile[]>;
 }
 
 export const createUserStore = async (): Promise<UserStore> => {

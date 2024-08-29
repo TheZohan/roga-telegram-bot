@@ -125,6 +125,20 @@ export class RedisUserStore implements UserStore {
     this.saveUser(profile);
   }
 
+  async getActiveUsers(): Promise<UserProfile[]> {
+    const userKeys = await this.client.keys('user:*');
+    const activeUsers: UserProfile[] = [];
+
+    for (const key of userKeys) {
+      const userData = await this.client.get(key);
+      if (userData) {
+        activeUsers.push(JSON.parse(userData));
+      }
+    }
+
+    return activeUsers;
+  }
+
   async isConnected(): Promise<boolean> {
     try {
       await this.client.ping();
