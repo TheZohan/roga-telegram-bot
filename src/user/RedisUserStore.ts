@@ -8,15 +8,9 @@ const MAX_HISTORY = 10; // Default max history
 export class RedisUserStore implements UserStore {
   private client: RedisClientType;
 
-  constructor(
-    private host: string,
-    private port: number,
-  ) {
+  constructor(private redisUrl: string) {
     this.client = createClient({
-      socket: {
-        host: this.host,
-        port: this.port,
-      },
+      url: this.redisUrl,
     });
 
     this.client.on('error', (err) => {
@@ -60,7 +54,7 @@ export class RedisUserStore implements UserStore {
   }
 
   async getMessageHistory(userId: string): Promise<Message[]> {
-    const messages = await this.client.lRange(`messages:${userId}`, -20, -1);
+    const messages = await this.client.lRange(`messages:${userId}`, 0, -1);
     return messages.map((message) => JSON.parse(message));
   }
 
