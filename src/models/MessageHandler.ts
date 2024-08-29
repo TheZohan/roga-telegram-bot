@@ -103,6 +103,22 @@ export class MessageHandler {
     return await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
   };
 
+  public async createScheduledMessage(userId: string): Promise<string> {
+    const userData: UserData = await this.userStore.getUserData(userId);
+    const userProfileString = JSON.stringify(userData.profile);
+
+    const systemMessage = getPrompt('createScheduledMessage', {
+      userProfile: userProfileString,
+      currentTime: new Date().toISOString(),
+    });
+
+    const response = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
+    this.updateMessageHistory(userData, StandardRoles.assistant, response);
+    this.userStore.saveUser(userData.profile);
+
+    return response;
+  }
+
   enhanceSummary = async (profile: UserProfile, userMessage: string, botResponse: string) => {
     const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`;
     const systemMessage = getPrompt('enhanceSummary', {

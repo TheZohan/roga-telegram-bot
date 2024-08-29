@@ -3,12 +3,17 @@ dotenv.config();
 import express, { Request, Response } from 'express';
 import fs from 'fs';
 import { exportMessageHistoryToCsv } from './user/MessageHistoryExporter';
-import { initializeBot } from './TelegramBot/Bot';
 import logger from './utils/logger';
-
-initializeBot().catch(logger.error);
-
+import { setupScheduleMessageRoutes } from './TelegramBot/ScheduledMessages';
 const app = express();
+
+(async () => {
+  try {
+    setupScheduleMessageRoutes(app);
+  } catch (error) {
+    logger.error('Error initializing:', error);
+  }
+})();
 
 app.get('/', (req: Request, res: Response) => {
   res.send(`Hello, I'm alive!`);
