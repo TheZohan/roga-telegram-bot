@@ -6,6 +6,7 @@ import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
 import logger from '../utils/logger';
+import { Console } from 'console';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
@@ -52,11 +53,37 @@ export class MessageHandler {
     this.updateMessageHistory(userData, StandardRoles.user, userMessage);
     const botReply = await this.respondToUser(userData, userMessage);
     this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
+    this.processConversation(userData.profile, userMessage, botReply);
     this.enhanceSummary(userData.profile, userMessage, botReply);
-    this.getDetailsFromMessage(userData.profile, userMessage);
+    //this.getDetailsFromMessage(userData.profile, userMessage);
     return botReply;
   };
 
+  processConversation = async (profile: UserProfile, userMessage: string, BotMessage: string) => {
+    logger.debug('Processing conversation', JSON.stringify(profile));
+    const personalDetailsStrinfied = JSON.stringify(profile.personalDetails);
+    const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${BotMessage}`;
+    const processConversationPrompt = getPrompt('processConversation', {
+      personalDetails: personalDetailsStrinfied,
+      combinedText: combinedText,
+    });
+    const res = await this.openAIClient.sendMessage(processConversationPrompt, '', []);
+    console.log(res);
+    try{
+      const responses: Map<string, string> = this.parseSections(res);
+      if(responses.has('SUMMARY') && responses.get('SUMMARY') !== ""){
+        profile.conversationSummary = responses.get('SUMMARY')!;
+      }
+      if(responses.has('PERSONAL DETAILS') && responses.get('PERSONAL DETAILS') !== ""){
+        const newPersonalDetails = this.parseMarkdownToJson(responses.get('PERSONAL DETAILS')!);
+        if(newPersonalDetails.personalDetails != undefined)
+        profile.personalDetails = {...newPersonalDetails.personalDetails};
+      }
+      console.log(profile);
+    } catch (error) {
+      logger.error("Can't parse message");
+    }
+  };
   getDetailsFromMessage = async (userProfile: UserProfile, message: string) => {
     const userProfileString = JSON.stringify(userProfile);
     const getDetailsFromMessagePrompt = getPrompt('getDetails', {
@@ -165,4 +192,51 @@ export class MessageHandler {
       index === 0 ? match.toLowerCase() : match.toUpperCase().replace(/\s+/g, ''),
     );
   };
+  parseSections(input: string): Map<string, string> {
+  // Create a map to store sections and their content
+  const sectionsMap = new Map<string, string>();
+
+  // Split the input by lines
+  const lines = input.split('\n');
+
+  // Initialize variables to keep track of the current section and its content
+  let currentSection = '';
+  let currentContent: string[] = [];
+
+  for (const line of lines) {
+    // Trim the line to avoid spaces affecting the checks
+    const trimmedLine = line.trim();
+
+    // Check if the line starts with '###', indicating a new section
+    if (trimmedLine.startsWith('###')) {
+      // If there is an existing section, save its content to the map
+      if (currentSection) {
+        // Save the current section in uppercase and its trimmed content
+        sectionsMap.set(currentSection.toUpperCase(), currentContent.join('\n').trim());
+        currentContent = []; // Reset content for the next section
+      }
+
+      // Update the current section to the new header (removing '###', ':', '**', trimming, and converting to uppercase)
+      currentSection = trimmedLine
+        .replace('###', '')  // Remove '###'
+        .replace(':', '')    // Remove ':'
+        .replace(/\*\*/g, '') // Remove '**'
+        .trim(); // Trim to remove any extra spaces
+    } else if (trimmedLine !== '') {
+      // If not a new section and not an empty line, add the line to the current content
+      currentContent.push(trimmedLine);
+    }
+  }
+
+  // Add the last section and its content to the map
+  if (currentSection) {
+    // Save the last section in uppercase and its trimmed content
+    sectionsMap.set(currentSection.toUpperCase(), currentContent.join('\n').trim());
+  }
+
+  console.log("Debug: Section Parsing Completed");
+  console.log('sectionsMap:', sectionsMap);
+  return sectionsMap;
+}
+
 }
