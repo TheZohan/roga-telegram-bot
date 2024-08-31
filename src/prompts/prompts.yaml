@@ -26,10 +26,6 @@ respondToUser: >
       - **Encourage the User**: If the user needs encouragement about a challange in their lives.
       - **Express Empathy**: If the user shared an experience or emotion that might be hard for them express empathy about it.
    - Limit the answer to 100 to 400 characters so that the chat remains casual.
-
-enhanceSummary: 'Summarize the following text: "{{combinedText}}"'
-getDetails: 'You will receive a message containing personal details and meaningful life events. Your task is to extract this information and create a well-structured Markdown file containing only personal details and significant life events.Instructions:Personal Details Section: Include the following attributes: firstName, lastName, age, maritalStatus, and location. For any missing attributes, use default values ("Unknown" for strings and 0 for numeric values).The main headline of the Markdown must be "# Personal Details".Handling Other Attributes: Extract any additional attributes (such as significant life events, personal milestones, spiritual experiences, and other relevant personal information).If an attribute has a single piece of data, format it as **Attribute Name**: Value.If an attribute contains multiple entries, format it under a subheading with ## Attribute Name, followed by the list of values.Combining Data:Incorporate any existing personal details from previous files into the new Markdown structure, ensuring all data is appropriately formatted.Do not keep the original JSON format—convert all relevant data into plain text as per the guidelines.Output:Return the entire result as a Markdown-formatted text, ensuring that it is clean, well-structured, and easy to read.'
-
 processConversation: >
   ### Instructions:
   You have two tasks to perform based on the provided conversation and personal details. Follow each task step-by-step and ensure that the output is well-structured and distinct for each part.
@@ -45,16 +41,20 @@ processConversation: >
    - Extract the following standard attributes: firstName, lastName, age, maritalStatus, and location.
    - For any missing attributes, use default values ("Unknown" for strings and 0 for numeric values).
    - Format this section with the main headline "# Personal Details" and list each attribute under this section.
-   - attribute is marked as **Attribute Name**: Value.
-   - each attribute must have only one line
+   - Attributes are marked as **Attribute Name**: Value.
+   - Each attribute must have only one line
+   - Try infer the misssing attributes data from the conversation text and existing personal details for exmpale if my wife died today than i am widowed.
+   - dont add atrributes that are not in the list
 
    **Significant Life Events Section**:
    - Identify and extract any mentions of significant life events, personal milestones, or experiences (e.g., career changes, loss of a loved one, major accomplishments, etc.).
    - Format this section under a new headline "## [the type of the event]".
    - In case the user gave new details about an event, update the event description.
    - List each life event as a bullet point or in a brief descriptive paragraph format.
-   - Try adding a time stamp to the events if possible.
+   - ensure that each event is accompanied by a timestamp formatted as [Year, Month, Day] or [Year, Month], based on the precision available for the event. Ensure these timestamps are absolute and globally recognized, avoiding any relative descriptions like "yesterday" or "last month."
    - The deafult type of the event is "significant life events".
+   - Only categorize to the given options
+
 
    **Combining Data**:
    - Incorporate any existing personal details from previous files into the new Markdown structure, ensuring all data is appropriately formatted.

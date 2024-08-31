@@ -6,12 +6,9 @@ import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
 import logger from '../utils/logger';
-import { Console } from 'console';
+
 
 const MESSAGES_HISTORY_LENGTH = 20;
-
-type SectionContent = Record<string, unknown>;
-
 export class MessageHandler {
   userStore: UserStore;
   ratingSelector?: RatingSelector;
@@ -54,13 +51,10 @@ export class MessageHandler {
     const botReply = await this.respondToUser(userData, userMessage);
     this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
     this.processConversation(userData.profile, userMessage, botReply);
-    this.enhanceSummary(userData.profile, userMessage, botReply);
-    //this.getDetailsFromMessage(userData.profile, userMessage);
     return botReply;
   };
 
   processConversation = async (profile: UserProfile, userMessage: string, BotMessage: string) => {
-    logger.debug('Processing conversation', JSON.stringify(profile));
     const personalDetailsStrinfied = JSON.stringify(profile.personalDetails);
     const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${BotMessage}`;
     const processConversationPrompt = getPrompt('processConversation', {
@@ -68,34 +62,24 @@ export class MessageHandler {
       combinedText: combinedText,
     });
     const res = await this.openAIClient.sendMessage(processConversationPrompt, '', []);
-    console.log(res);
+    let changed = false;
     try{
-      const responses: Map<string, string> = this.parseSections(res);
-      if(responses.has('SUMMARY') && responses.get('SUMMARY') !== ""){
+      const responses: Map<string, string> = this.parseMultiResponse(res);
+      if (responses.has('SUMMARY') && responses.get('SUMMARY') !== '') {
         profile.conversationSummary = responses.get('SUMMARY')!;
+        changed = true;
       }
-      if(responses.has('PERSONAL DETAILS') && responses.get('PERSONAL DETAILS') !== ""){
-        const newPersonalDetails = this.parseMarkdownToJson(responses.get('PERSONAL DETAILS')!);
-        if(newPersonalDetails.personalDetails != undefined)
-        profile.personalDetails = {...newPersonalDetails.personalDetails};
+      if (responses.has('PERSONAL DETAILS') && responses.get('PERSONAL DETAILS') !== '') {
+        const newPersonalDetails = this.parsePersonalDeatils(responses.get('PERSONAL DETAILS')!);
+        profile.personalDetails = { ...newPersonalDetails };
+        changed = true;
       }
-      console.log(profile);
     } catch (error) {
       logger.error("Can't parse message");
     }
-  };
-  getDetailsFromMessage = async (userProfile: UserProfile, message: string) => {
-    const userProfileString = JSON.stringify(userProfile);
-    const getDetailsFromMessagePrompt = getPrompt('getDetails', {
-      userProfile: userProfileString,
-    });
-    const res = await this.openAIClient.sendMessage(getDetailsFromMessagePrompt, message, []);
-    try {
-      userProfile.personalDetails = this.parseMarkdownToJson(res);
-      this.userStore.saveUser(userProfile);
-    } catch (error) {
-      console.log("can't parse message");
-    }
+    if (changed) this.userStore.saveUser(profile);
+    console.log('userData', profile);
+
   };
 
   getRandomNumber(min: number, max: number): number {
@@ -130,15 +114,6 @@ export class MessageHandler {
     return await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
   };
 
-  enhanceSummary = async (profile: UserProfile, userMessage: string, botResponse: string) => {
-    const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`;
-    const systemMessage = getPrompt('enhanceSummary', {
-      combinedText: combinedText,
-    });
-    profile.conversationSummary = await this.openAIClient.sendMessage(systemMessage, '', []);
-    this.userStore.saveUser(profile);
-  };
-
   updateMessageHistory = (UserData: UserData, role: StandardRoles, newMessage: string): void => {
     const message: Message = {
       id: uuidv4(),
@@ -155,24 +130,22 @@ export class MessageHandler {
     this.userStore.addMessage(message);
   };
 
-  parseMarkdownToJson = (mdContent: string): Record<string, SectionContent> => {
+  parsePersonalDeatils = (mdContent: string): Record<string, any> => {
     const lines = mdContent.split('\n');
-    const result: Record<string, SectionContent> = {};
-    let currentSection: string | null = null;
+    const result: Record<string, any> = {};
     let currentArray: string[] | null = null;
 
     lines.forEach((line) => {
       line = line.trim();
 
       if (line.startsWith('# ')) {
-        // Main section, start new JSON object
-        currentSection = this.camelCase(line.slice(2).trim());
-        result[currentSection] = {};
+        // Main section, use the section as a prefix for keys
+        currentArray = null;
       } else if (line.startsWith('## ')) {
-        // Subsection, start a new array
+        // Subsection, start a new array with a specific key
         const subKey = this.camelCase(line.slice(3).trim());
         currentArray = [];
-        result[currentSection as string][subKey] = currentArray;
+        result[subKey] = currentArray;
       } else if (line.startsWith('- ') && currentArray) {
         // Item in an array
         currentArray.push(line.slice(2).trim());
@@ -180,63 +153,47 @@ export class MessageHandler {
         // Single attribute
         const [keyPart, value] = line.split(':').map((s) => s.trim());
         const key = this.camelCase(keyPart.replace(/\*\*/g, '')); // Remove ** from keys and convert to camelCase
-        result[currentSection as string][key] = value;
+        result[key] = value;
       }
     });
-
-    return result;
-  };
+    return result
+  }
 
   camelCase = (input: string): string => {
     return input.replace(/(?:^\w|[A-Z]|\b\w|\s+)/g, (match, index) =>
       index === 0 ? match.toLowerCase() : match.toUpperCase().replace(/\s+/g, ''),
     );
-  };
-  parseSections(input: string): Map<string, string> {
-  // Create a map to store sections and their content
-  const sectionsMap = new Map<string, string>();
+  }
 
-  // Split the input by lines
-  const lines = input.split('\n');
-
-  // Initialize variables to keep track of the current section and its content
-  let currentSection = '';
-  let currentContent: string[] = [];
-
-  for (const line of lines) {
-    // Trim the line to avoid spaces affecting the checks
-    const trimmedLine = line.trim();
-
-    // Check if the line starts with '###', indicating a new section
-    if (trimmedLine.startsWith('###')) {
-      // If there is an existing section, save its content to the map
-      if (currentSection) {
-        // Save the current section in uppercase and its trimmed content
-        sectionsMap.set(currentSection.toUpperCase(), currentContent.join('\n').trim());
-        currentContent = []; // Reset content for the next section
+  parseMultiResponse(input: string): Map<string, string> {
+    const sectionsMap = new Map<string, string>();
+    const lines = input.split('\n');
+    let currentSection = '';
+    let currentContent: string[] = [];
+    for (const line of lines) {
+      const trimmedLine = line.trim();
+      // Check if the line starts with '###', indicating a new section
+      if (trimmedLine.startsWith('###')) {
+        if (currentSection) {
+          // Save the current section in uppercase and its trimmed content
+          sectionsMap.set(currentSection.toUpperCase(), currentContent.join('\n').trim());
+          currentContent = []; // Reset content for the next section
+        }
+        currentSection = trimmedLine
+          .replace('###', '') 
+          .replace(':', '') 
+          .replace(/\*\*/g, '') 
+          .trim(); 
+      } else if (trimmedLine !== '') {
+        // If not a new section and not an empty line, add the line to the current content
+        currentContent.push(trimmedLine);
       }
-
-      // Update the current section to the new header (removing '###', ':', '**', trimming, and converting to uppercase)
-      currentSection = trimmedLine
-        .replace('###', '')  // Remove '###'
-        .replace(':', '')    // Remove ':'
-        .replace(/\*\*/g, '') // Remove '**'
-        .trim(); // Trim to remove any extra spaces
-    } else if (trimmedLine !== '') {
-      // If not a new section and not an empty line, add the line to the current content
-      currentContent.push(trimmedLine);
     }
+    // Add the last section and its content to the map
+    if (currentSection) {
+      sectionsMap.set(currentSection.toUpperCase(), currentContent.join('\n').trim());
+    }
+    return sectionsMap;
   }
-
-  // Add the last section and its content to the map
-  if (currentSection) {
-    // Save the last section in uppercase and its trimmed content
-    sectionsMap.set(currentSection.toUpperCase(), currentContent.join('\n').trim());
-  }
-
-  console.log("Debug: Section Parsing Completed");
-  console.log('sectionsMap:', sectionsMap);
-  return sectionsMap;
-}
 
 }
