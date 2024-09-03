@@ -55,32 +55,40 @@ export class MessageHandler {
   };
 
   processConversation = async (profile: UserProfile, userMessage: string, BotMessage: string) => {
+    logger.debug('Start processing conversation\n');
+    logger.debug('user profile before processing: ', profile);
     const personalDetailsStrinfied = JSON.stringify(profile.personalDetails);
-    const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${BotMessage}`;
+    const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${BotMessage}\n`;
     const processConversationPrompt = getPrompt('processConversation', {
       personalDetails: personalDetailsStrinfied,
       combinedText: combinedText,
+      date: new Date().toISOString()
     });
     const res = await this.openAIClient.sendMessage(processConversationPrompt, '', []);
-    let changed = false;
-    try{
+    let currentKey: string = '';
+    try {
       const responses: Map<string, string> = this.parseMultiResponse(res);
       if (responses.has('SUMMARY') && responses.get('SUMMARY') !== '') {
+        currentKey = 'SUMMARY';
         profile.conversationSummary = responses.get('SUMMARY')!;
-        changed = true;
       }
       if (responses.has('PERSONAL DETAILS') && responses.get('PERSONAL DETAILS') !== '') {
+        currentKey = 'PERSONAL DETAILS';
         const newPersonalDetails = this.parsePersonalDeatils(responses.get('PERSONAL DETAILS')!);
         profile.personalDetails = { ...newPersonalDetails };
-        changed = true;
       }
+      currentKey = 'COMPLETED';
     } catch (error) {
-      logger.error("Can't parse message");
+      logger.error("Can't parse " + currentKey + ' from the response');
     }
-    if (changed) this.userStore.saveUser(profile);
-    console.log('userData', profile);
-
-  };
+    if (currentKey == 'COMPLETED') {
+      this.userStore.saveUser(profile);
+      logger.info('proccessing conversation completed Successfully');
+    }
+    logger.debug('user profile after processing:');
+    logger.debug(profile);
+    logger.debug('End processing conversation');
+  }
 
   getRandomNumber(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -131,6 +139,7 @@ export class MessageHandler {
   };
 
   parsePersonalDeatils = (mdContent: string): Record<string, any> => {
+    logger.debug('Started parsing personal details');
     const lines = mdContent.split('\n');
     const result: Record<string, any> = {};
     let currentArray: string[] | null = null;
@@ -156,7 +165,10 @@ export class MessageHandler {
         result[key] = value;
       }
     });
-    return result
+    logger.debug('presonal details :');
+    logger.debug(result);
+    logger.debug('Finished parsing personal details');
+    return result;
   }
 
   camelCase = (input: string): string => {
@@ -166,6 +178,7 @@ export class MessageHandler {
   }
 
   parseMultiResponse(input: string): Map<string, string> {
+    logger.debug('Started Parsing multi response');
     const sectionsMap = new Map<string, string>();
     const lines = input.split('\n');
     let currentSection = '';
@@ -179,11 +192,7 @@ export class MessageHandler {
           sectionsMap.set(currentSection.toUpperCase(), currentContent.join('\n').trim());
           currentContent = []; // Reset content for the next section
         }
-        currentSection = trimmedLine
-          .replace('###', '') 
-          .replace(':', '') 
-          .replace(/\*\*/g, '') 
-          .trim(); 
+        currentSection = trimmedLine.replace('###', '').replace(':', '').replace(/\*\*/g, '').trim();
       } else if (trimmedLine !== '') {
         // If not a new section and not an empty line, add the line to the current content
         currentContent.push(trimmedLine);
@@ -193,7 +202,14 @@ export class MessageHandler {
     if (currentSection) {
       sectionsMap.set(currentSection.toUpperCase(), currentContent.join('\n').trim());
     }
+    logger.debug('sections :');
+    if (sectionsMap.size > 0 && logger.level == 'debug') {
+      for (const [key, value] of sectionsMap) {
+        logger.debug(key + ' : ' + value);
+      }
+    }
+    logger.debug('finished Parsing multi response');
     return sectionsMap;
-  }
 
+  }
 }
