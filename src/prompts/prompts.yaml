@@ -52,8 +52,9 @@ processConversation: >
    - In case the user gave new details about an event, update the event description.
    - List each life event as a bullet point or in a brief descriptive paragraph format.
    - ensure that each event is accompanied by a timestamp formatted as [Year, Month, Day] or [Year, Month], based on the precision available for the event. Ensure these timestamps are absolute and globally recognized, avoiding any relative descriptions like "yesterday" or "last month."
-   - The deafult type of the event is "significant life events".
-   - Only categorize to the given options
+   - Convert all relative dates in the text (e.g., "yesterday," "next month") to absolute, globally recognized timestamps. Use the format [Year, Month, Day] for specific dates or [Year, Month] when only the month and year are known. Avoid any relative terms.
+   - Only categorize to the given options.
+   - dont add events that happend between the bot and the user.
 
 
    **Combining Data**:
@@ -67,6 +68,7 @@ processConversation: >
   ### Input:
   1. **Conversation Text**: "{{combinedText}}"
   2. **Personal Details and Events**: "{{personalDetails}}"
+  3. **Todays Date**: "{{date}}"
 
   ### Output:
   Provide the outputs for both tasks separately as Markdown-formatted text. Ensure each task is clearly separated and labeled with only its task description as the key, followed by the response. This format should be easy to parse into a map; do not add anything to the keys! Keep a one-line space between the keys and the response.use ### to mark tasks.
