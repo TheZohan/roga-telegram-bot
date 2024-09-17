@@ -1,7 +1,7 @@
-import { OpenAIClient } from '../providers/OpenAIClient';
+import { LlmClient } from '../providers/LlmClient';
 import { LLMProvider } from '../providers/LlmProvider';
 import { UserProfile, Message, StandardRoles, Language, UserData } from '../user/UserProfile';
-import { getPrompt } from '../prompts/PromptsLoader';
+import { getPrompt, getPromptWithPerffixAndSuffix } from '../prompts/PromptsLoader';
 import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
@@ -14,13 +14,13 @@ type SectionContent = Record<string, unknown>;
 export class MessageHandler {
   userStore: UserStore;
   ratingSelector?: RatingSelector;
-  openAIClient: LLMProvider;
+  LlmClient: LLMProvider;
 
   constructor(userStore: UserStore, ratingSelector?: RatingSelector) {
     this.userStore = userStore;
     this.ratingSelector = ratingSelector;
-    this.openAIClient = new OpenAIClient();
-    //this.openAIClient = new CohereApi();
+    this.LlmClient = new LlmClient();
+    //this.LlmClient = new CohereApi();
   }
 
   greetTheUser = async (userId: string): Promise<string> => {
@@ -36,7 +36,7 @@ export class MessageHandler {
       userProfile: userProfileString,
       askForTheirName: askForTheirNameString,
     });
-    const response = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
+    const response = await this.LlmClient.sendMessage(systemMessage, '', userData.messages);
     this.updateMessageHistory(userData, StandardRoles.assistant, response);
     this.userStore.saveUser(userData.profile);
     return response;
@@ -59,15 +59,16 @@ export class MessageHandler {
 
   getDetailsFromMessage = async (userProfile: UserProfile, message: string) => {
     const userProfileString = JSON.stringify(userProfile);
-    const getDetailsFromMessagePrompt = getPrompt('getDetails', {
+    const getDetailsFromMessagePrompt = getPromptWithPerffixAndSuffix('getDetails', {
       userProfile: userProfileString,
+      presonalDetails: userProfile.personalDetails,
     });
-    const res = await this.openAIClient.sendMessage(getDetailsFromMessagePrompt, message, []);
+    const res = await this.LlmClient.sendMessage(getDetailsFromMessagePrompt, message, []);
     try {
       userProfile.personalDetails = this.parseMarkdownToJson(res);
       this.userStore.saveUser(userProfile);
     } catch (error) {
-      console.log("can't parse message");
+      logger.error('Error parsing personal details:', error);
     }
   };
 
@@ -100,7 +101,7 @@ export class MessageHandler {
       userProfile: userProfileString,
       randomTeacher: randomTeacher,
     });
-    return await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
+    return await this.LlmClient.sendMessage(systemMessage, message, userData.messages);
   };
 
   public async createScheduledMessage(userId: string): Promise<string> {
@@ -112,7 +113,7 @@ export class MessageHandler {
       currentTime: new Date().toISOString(),
     });
 
-    const response = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
+    const response = await this.LlmClient.sendMessage(systemMessage, '', userData.messages);
     this.updateMessageHistory(userData, StandardRoles.assistant, response);
     this.userStore.saveUser(userData.profile);
 
@@ -124,7 +125,7 @@ export class MessageHandler {
     const systemMessage = getPrompt('enhanceSummary', {
       combinedText: combinedText,
     });
-    profile.conversationSummary = await this.openAIClient.sendMessage(systemMessage, '', []);
+    profile.conversationSummary = await this.LlmClient.sendMessage(systemMessage, '', []);
     this.userStore.saveUser(profile);
   };
 

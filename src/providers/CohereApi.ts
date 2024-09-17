@@ -1,48 +1,37 @@
-import axios from 'axios';
 import { LLMProvider } from './LlmProvider';
 import { Message } from '../user/UserProfile';
 import logger from '../utils/logger';
+import { CohereClient } from 'cohere-ai';
+
+const cohere = new CohereClient({
+  token: process.env.LLM_API_KEY!,
+});
 
 export default class CohereApi implements LLMProvider {
-  private readonly CHAT_API_ENDPOINT = 'https://api.cohere.com/v1/chat';
-  private readonly API_KEY = process.env.COHERE_API_KEY; // Replace with your OpenAI API key
+  private readonly LLM_MODEL = process.env.LLM_MODEL || 'command'; 
   private readonly configuration = {
     temperature: 0.7,
     k: 10, // 0 to 500, AKA top_k
     p: 0.5, // AKA top_p
     frequency_penalty: 0.0,
     presence_penalty: 0.0,
-    prompt_truncation: null, // Options are "OFF", "AUTO_PRESERVE_ORDER" or "AUTO"
+    prompt_truncation: 'AUTO', // Options are "OFF", "AUTO_PRESERVE_ORDER" or "AUTO"
     citation_quality: 'accurate', //  # O
+    model: this.LLM_MODEL,
   };
-
   public async sendMessage(systemMessage: string, userMessage: string, chatHistory: Message[]): Promise<string> {
-    try {
-      const response = await axios.post(
-        this.CHAT_API_ENDPOINT,
-        {
-          message: userMessage,
-          model: process.env.COHERE_MODEL,
-          preamble: systemMessage,
-          chat_history: chatHistory,
-          max_tokens: 400, // Adjust as needed
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${this.API_KEY}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
-
-      if (response.data && response.data.text) {
-        return response.data.text;
-      } else {
-        throw new Error('No response from Cohere API');
-      }
+    try{
+      const res = await cohere.chat({
+        chatHistory: chatHistory,
+        preamble: userMessage == '' ? userMessage : systemMessage,
+        message: userMessage == '' ? systemMessage : userMessage,
+        maxTokens: 150, // Adjust as needed
+        ...this.configuration,
+      });
+      return res.text;
     } catch (error) {
-      logger.error('Error communicating with Cohere API:', error);
-      throw error;
+      logger.error('Error calling Cohere:', error);
+      return "I'm experiencing some difficulties right now. Please try again later.";
     }
   }
 }
