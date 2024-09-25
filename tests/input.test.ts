@@ -45,10 +45,7 @@ const setResponses = async (responses: Responses, user: UserProfile) => {
     '"' + JSON.stringify(responses.personalDetails + '"'),
   );
 
-  LlmClient.setResponse(
-    createInput(getPrompt('respondToUser', {}), responses.userMessage),
-    responses.botMessage,
-  );
+  LlmClient.setResponse(createInput(getPrompt('respondToUser', {}), responses.userMessage), responses.botMessage);
 };
 
 // Create the mocked ratingSelector and user store
@@ -75,7 +72,7 @@ describe('basic tests', () => {
     satisfactionLevel: [],
     lastTimeAskedForSatisfactionLevel: new Date(),
   };
-  
+
   userStore.saveUser(userProfile);
 
   afterEach(() => {
@@ -95,7 +92,6 @@ describe('basic tests', () => {
     await setResponses(responses, userProfile);
 
     // Act & Assert
-    await expect(messageHandler.handleMessage('yogev', responses.userMessage))
-      .resolves.toBe(responses.botMessage);
+    await expect(messageHandler.handleMessage('yogev', responses.userMessage)).resolves.toBe(responses.botMessage);
   });
 });

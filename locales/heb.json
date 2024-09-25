@@ -7,6 +7,7 @@
         "Meh": "סביר",
         "Good": "טוב",
         "Great": "מצוין",
-        "Template": "עניתי עכשיו על השאלה איך אני מרגיש ואני מרגיש {{level}}"
+        "Template": "עניתי עכשיו על השאלה איך אני מרגיש ואני מרגיש {{level}}",
+        "errorMessage": "אופס, נראה שקרה משהו לא צפוי מהצד שלי. אל תדאג, אני מטפל בזה! נסה שוב בעוד רגע, או שתכתוב לי אם יש משהו אחר שאוכל לעזור בו. 😊"
       }
 }

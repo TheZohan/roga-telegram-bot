@@ -4,8 +4,6 @@ import OpenAI from 'openai';
 import logger from '../utils/logger';
 import { Message, StandardRoles } from '../user/UserProfile';
 
-
-
 export default class OpenAIApi implements LLMProvider {
   openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY!,
@@ -31,7 +29,7 @@ export default class OpenAIApi implements LLMProvider {
       return responseChoices[0].message.content?.toString() || "I don't know what to say...";
     } catch (error) {
       logger.error('Error calling OpenAI:', error);
-      return "I'm experiencing some difficulties right now. Please try again later.";
+      throw error;
     }
   }
   formatMessageHistory(messageHistory: Message[]): ChatCompletionMessageParam[] {
@@ -50,5 +48,5 @@ export default class OpenAIApi implements LLMProvider {
       const chatMessage: ChatCompletionMessageParam = { role, content: message.message };
       return chatMessage;
     });
-}
+  }
 }
