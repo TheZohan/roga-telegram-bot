@@ -78,11 +78,11 @@ export class MessageHandler {
         userProfile.personalDetails = this.parseMarkdownToJson(res);
         this.userStore.saveUser(userProfile);
       } catch (error) {
-        logger.error("Can't parse message:", error);
+        logger.error("Can't parse message:", res, error);
         throw error; // Re-throw the error to be handled by the calling function
       }
     } catch (error) {
-      logger.error("Can't parse message:", error);
+      logger.error('Faile to get details from message:', error);
       throw error; // Re-throw the error to be handled by the calling function
     }
   };
