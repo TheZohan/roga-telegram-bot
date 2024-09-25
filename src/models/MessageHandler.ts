@@ -71,7 +71,7 @@ export class MessageHandler {
       userProfile.personalDetails = this.parseMarkdownToJson(res);
       this.userStore.saveUser(userProfile);
     } catch (error) {
-      logger.error("Can't parse message:", error);
+      logger.error('Faile to get details from message:', error);
       throw error; // Re-throw the error to be handled by the calling function
     }
   };
@@ -118,9 +118,9 @@ export class MessageHandler {
         currentTime: new Date().toISOString(),
       });
 
-    const response = await this.llmClient.sendMessage(systemMessage, '', userData.messages);
-    this.updateMessageHistory(userData, StandardRoles.assistant, response);
-    this.userStore.saveUser(userData.profile);
+      const response = await this.llmClient.sendMessage(systemMessage, '', userData.messages);
+      this.updateMessageHistory(userData, StandardRoles.assistant, response);
+      this.userStore.saveUser(userData.profile);
 
       return response;
     } catch (error) {
