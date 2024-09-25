@@ -30,7 +30,7 @@ export class OpenAIClient implements LLMProvider {
       return responseChoices[0].message.content?.toString() || "I don't know what to say...";
     } catch (error) {
       logger.error('Error calling OpenAI:', error);
-      return "I'm experiencing some difficulties right now. Please try again later.";
+      throw error;
     }
   }
 

@@ -7,7 +7,8 @@
       "Meh": "Meh",
       "Good": "Good",
       "Great": "Great",
-      "Template": "I just answer the question: 'How do you feel?' and I am feeling {{level}}"
+      "Template": "I just answer the question: 'How do you feel?' and I am feeling {{level}}",
+      "errorMessage": "Oops, it looks like something went wrong on my end. Don’t worry, I’m on it! Please try again in a moment, or let me know if you need help with something else. 😊"
     }
   }
   

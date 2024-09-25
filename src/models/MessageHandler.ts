@@ -24,50 +24,66 @@ export class MessageHandler {
   }
 
   greetTheUser = async (userId: string): Promise<string> => {
-    const userData: UserData = await this.userStore.getUserData(userId);
-    const userProfileString = JSON.stringify(userData.profile);
-    const defaultLanguage: keyof typeof Language = process.env.LANGUAGE! as keyof typeof Language;
-    const language: string = Language[defaultLanguage];
-    logger.debug('language', language);
-    const askForTheirNameString =
-      userData.profile.personalDetails.firstName == undefined ? 'you have to ask for the users name' : '';
-    const systemMessage = getPrompt('greeting', {
-      langauge: language,
-      userProfile: userProfileString,
-      askForTheirName: askForTheirNameString,
-    });
-    const response = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
-    this.updateMessageHistory(userData, StandardRoles.assistant, response);
-    this.userStore.saveUser(userData.profile);
-    return response;
+    try {
+      const userData: UserData = await this.userStore.getUserData(userId);
+      const userProfileString = JSON.stringify(userData.profile);
+      const defaultLanguage: keyof typeof Language = process.env.LANGUAGE! as keyof typeof Language;
+      const language: string = Language[defaultLanguage];
+      logger.debug('language', language);
+      const askForTheirNameString =
+        userData.profile.personalDetails.firstName == undefined ? 'you have to ask for the users name' : '';
+      const systemMessage = getPrompt('greeting', {
+        langauge: language,
+        userProfile: userProfileString,
+        askForTheirName: askForTheirNameString,
+      });
+      const response = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
+      this.updateMessageHistory(userData, StandardRoles.assistant, response);
+      this.userStore.saveUser(userData.profile);
+      return response;
+    } catch (error) {
+      logger.error('Error greeting the user:', error);
+      throw error;
+    }
   };
 
   handleMessage = async (userId: string, userMessage: string): Promise<string> => {
-    logger.debug('Handling message', userMessage, 'for user', userId);
-    const userData = await this.userStore.getUserData(userId);
-    userData.profile = {
-      ...userData.profile,
-      username: userId,
-    };
-    this.updateMessageHistory(userData, StandardRoles.user, userMessage);
-    const botReply = await this.respondToUser(userData, userMessage);
-    this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
-    this.enhanceSummary(userData.profile, userMessage, botReply);
-    this.getDetailsFromMessage(userData.profile, userMessage);
-    return botReply;
+    try {
+      logger.debug('Handling message', userMessage, 'for user', userId);
+      const userData = await this.userStore.getUserData(userId);
+      userData.profile = {
+        ...userData.profile,
+        username: userId,
+      };
+      this.updateMessageHistory(userData, StandardRoles.user, userMessage);
+      const botReply = await this.respondToUser(userData, userMessage);
+      this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
+      this.enhanceSummary(userData.profile, userMessage, botReply);
+      this.getDetailsFromMessage(userData.profile, userMessage);
+      return botReply;
+    } catch (error) {
+      logger.error('Error handling message:', error);
+      throw error; // Re-throw the error to be handled by the calling function
+    }
   };
 
   getDetailsFromMessage = async (userProfile: UserProfile, message: string) => {
-    const userProfileString = JSON.stringify(userProfile);
-    const getDetailsFromMessagePrompt = getPrompt('getDetails', {
-      userProfile: userProfileString,
-    });
-    const res = await this.openAIClient.sendMessage(getDetailsFromMessagePrompt, message, []);
     try {
-      userProfile.personalDetails = this.parseMarkdownToJson(res);
-      this.userStore.saveUser(userProfile);
+      const userProfileString = JSON.stringify(userProfile);
+      const getDetailsFromMessagePrompt = getPrompt('getDetails', {
+        userProfile: userProfileString,
+      });
+      const res = await this.openAIClient.sendMessage(getDetailsFromMessagePrompt, message, []);
+      try {
+        userProfile.personalDetails = this.parseMarkdownToJson(res);
+        this.userStore.saveUser(userProfile);
+      } catch (error) {
+        logger.error("Can't parse message:", error);
+        throw error; // Re-throw the error to be handled by the calling function
+      }
     } catch (error) {
-      console.log("can't parse message");
+      logger.error("Can't parse message:", error);
+      throw error; // Re-throw the error to be handled by the calling function
     }
   };
 
@@ -76,56 +92,71 @@ export class MessageHandler {
   }
 
   respondToUser = async (userData: UserData, message: string): Promise<string> => {
-    // Forward the message to OpenAI and get a response
-    const userProfileString = JSON.stringify(userData.profile);
-    const teachers = [
-      'Eckhart Tolle',
-      'Thich Nhat Hanh',
-      'Ram Dass',
-      'Deepak Chopra',
-      'Paramahansa Yogananda',
-      'Jiddu Krishnamurti',
-      'Mooji',
-      'Osho',
-      'Pema Chödrön',
-      'Adyashanti',
-      'Byron Katie',
-      'Sadhguru',
-      'Rumi',
-      'Nisargadatta Maharaj',
-      'Laozi',
-    ];
-    const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];
-    const systemMessage = getPrompt('respondToUser', {
-      userProfile: userProfileString,
-      randomTeacher: randomTeacher,
-    });
-    return await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
+    try {
+      // Forward the message to OpenAI and get a response
+      const userProfileString = JSON.stringify(userData.profile);
+      const teachers = [
+        'Eckhart Tolle',
+        'Thich Nhat Hanh',
+        'Ram Dass',
+        'Deepak Chopra',
+        'Paramahansa Yogananda',
+        'Jiddu Krishnamurti',
+        'Mooji',
+        'Osho',
+        'Pema Chödrön',
+        'Adyashanti',
+        'Byron Katie',
+        'Sadhguru',
+        'Rumi',
+        'Nisargadatta Maharaj',
+        'Laozi',
+      ];
+      const randomTeacher = teachers[Math.floor(Math.random() * teachers.length)];
+      const systemMessage = getPrompt('respondToUser', {
+        userProfile: userProfileString,
+        randomTeacher: randomTeacher,
+      });
+      return await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
+    } catch (error) {
+      logger.error('Error responding to user:', error);
+      throw error; // Re-throw the error to be handled by the calling function
+    }
   };
 
   public async createScheduledMessage(userId: string): Promise<string> {
-    const userData: UserData = await this.userStore.getUserData(userId);
-    const userProfileString = JSON.stringify(userData.profile);
+    try {
+      const userData: UserData = await this.userStore.getUserData(userId);
+      const userProfileString = JSON.stringify(userData.profile);
 
-    const systemMessage = getPrompt('createScheduledMessage', {
-      userProfile: userProfileString,
-      currentTime: new Date().toISOString(),
-    });
+      const systemMessage = getPrompt('createScheduledMessage', {
+        userProfile: userProfileString,
+        currentTime: new Date().toISOString(),
+      });
 
-    const response = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
-    this.updateMessageHistory(userData, StandardRoles.assistant, response);
-    this.userStore.saveUser(userData.profile);
+      const response = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
+      this.updateMessageHistory(userData, StandardRoles.assistant, response);
+      this.userStore.saveUser(userData.profile);
 
-    return response;
+      return response;
+    } catch (error) {
+      logger.error('Error creating scheduled message:', error);
+      throw error; // Re-throw the error to be handled by the calling function
+    }
   }
 
   enhanceSummary = async (profile: UserProfile, userMessage: string, botResponse: string) => {
-    const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`;
-    const systemMessage = getPrompt('enhanceSummary', {
-      combinedText: combinedText,
-    });
-    profile.conversationSummary = await this.openAIClient.sendMessage(systemMessage, '', []);
-    this.userStore.saveUser(profile);
+    try {
+      const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${botResponse}`;
+      const systemMessage = getPrompt('enhanceSummary', {
+        combinedText: combinedText,
+      });
+      profile.conversationSummary = await this.openAIClient.sendMessage(systemMessage, '', []);
+      this.userStore.saveUser(profile);
+    } catch (error) {
+      logger.error('Error enhancing summary:', error);
+      throw error; // Re-throw the error to be handled by the calling function
+    }
   };
 
   updateMessageHistory = (UserData: UserData, role: StandardRoles, newMessage: string): void => {
