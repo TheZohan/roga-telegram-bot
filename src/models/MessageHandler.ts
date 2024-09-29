@@ -1,11 +1,10 @@
-import { OpenAIClient } from '../providers/OpenAIClient';
-import { LLMProvider } from '../providers/LlmProvider';
 import { UserProfile, Message, StandardRoles, Language, UserData } from '../user/UserProfile';
 import { getPrompt } from '../prompts/PromptsLoader';
 import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
 import logger from '../utils/logger';
+import LlmClient from '../providers/LlmClient';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
@@ -14,12 +13,12 @@ type SectionContent = Record<string, unknown>;
 export class MessageHandler {
   userStore: UserStore;
   ratingSelector?: RatingSelector;
-  openAIClient: LLMProvider;
+  openAIClient: LlmClient;
 
   constructor(userStore: UserStore, ratingSelector?: RatingSelector) {
     this.userStore = userStore;
     this.ratingSelector = ratingSelector;
-    this.openAIClient = new OpenAIClient();
+    this.openAIClient = new LlmClient();
     //this.openAIClient = new CohereApi();
   }
 

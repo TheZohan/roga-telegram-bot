@@ -5,7 +5,7 @@ import { UserStore } from '../src/user/UserStore';
 import { Language, PersonalDetails, UserProfile } from '../src/user/UserProfile';
 import * as PromptsLoader from '../src/prompts/PromptsLoader';
 import { getPrompt } from '../src/prompts/PromptsLoader';
-import { OpenAIMock, createInput } from './OpenAiMock';
+import { LlmClientMock, createInput } from './LlmClientMock';
 import { MemoryUserStore } from '../src/user/MemoryUserStore';
 interface Responses {
   userMessage: string;
@@ -15,14 +15,13 @@ interface Responses {
   personalDetails?: PersonalDetails;
 }
 
-const openAIClientMock: OpenAIMock = new OpenAIMock();
-jest.mock('../src/providers/OpenAIClient', () => {
-  return {
-    OpenAIClient: jest.fn().mockImplementation(() => {
-      return openAIClientMock;
-    }),
-  };
+const LlmClient: LlmClientMock = new LlmClientMock();
+jest.mock('../src/providers/LlmClient.ts', () => {
+  return jest.fn().mockImplementation(() => {
+    return LlmClient;
+  });
 });
+
 
 const originalGetPrompt = PromptsLoader.getPrompt;
 jest.spyOn(PromptsLoader, 'getPrompt').mockImplementation((promptName, data) => {
@@ -37,15 +36,15 @@ const setResponses = async (responses: Responses, user: UserProfile) => {
     combinedText: combinedText,
   });
 
-  openAIClientMock.setResponse(createInput(summeryPrompt, responses.userMessage), responses.summery);
+  LlmClient.setResponse(createInput(summeryPrompt, responses.userMessage), responses.summery);
 
   const personalDetails = getPrompt('getDetails', {});
-  openAIClientMock.setResponse(
+  LlmClient.setResponse(
     createInput(personalDetails, responses.userMessage),
     '"' + JSON.stringify(responses.personalDetails + '"'),
   );
 
-  openAIClientMock.setResponse(
+  LlmClient.setResponse(
     createInput(getPrompt('respondToUser', {}), responses.userMessage),
     responses.botMessage,
   );
