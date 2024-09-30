@@ -5,7 +5,7 @@ import logger from '../utils/logger';
 import { Message, StandardRoles } from '../user/UserProfile';
 
 const openai = new OpenAI({
-  apiKey: process.env.LLM_API_KEY!,
+  apiKey: process.env.OPENAI_API_KEY!,
 });
 
 export default class OpenAIApi implements LLMProvider {
@@ -20,7 +20,7 @@ export default class OpenAIApi implements LLMProvider {
     const messagesToSend = [...messages, ...history];
     logger.debug('SEND', messagesToSend);
     const completionRequest: OpenAI.Chat.ChatCompletionCreateParams = {
-      model: process.env.LLM_MODEL || 'gpt-4o',
+      model: process.env.OPENAI_MODEL || 'gpt-4o',
       messages: messagesToSend,
       max_tokens: 150, // Limit the response length
     };

@@ -5,6 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
 import logger from '../utils/logger';
 import LlmClient from '../providers/LlmClient';
+import LLMProvider from '../providers/LlmProvider';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
@@ -13,12 +14,12 @@ type SectionContent = Record<string, unknown>;
 export class MessageHandler {
   userStore: UserStore;
   ratingSelector?: RatingSelector;
-  openAIClient: LlmClient;
+  llmClient: LLMProvider;
 
   constructor(userStore: UserStore, ratingSelector?: RatingSelector) {
     this.userStore = userStore;
     this.ratingSelector = ratingSelector;
-    this.openAIClient = new LlmClient();
+    this.llmClient = new LlmClient() as LLMProvider;
   }
 
   greetTheUser = async (userId: string): Promise<string> => {
@@ -34,7 +35,7 @@ export class MessageHandler {
       userProfile: userProfileString,
       askForTheirName: askForTheirNameString,
     });
-    const response = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
+    const response = await this.llmClient.sendMessage(systemMessage, '', userData.messages);
     this.updateMessageHistory(userData, StandardRoles.assistant, response);
     this.userStore.saveUser(userData.profile);
     return response;
@@ -60,7 +61,7 @@ export class MessageHandler {
     const getDetailsFromMessagePrompt = getPrompt('getDetails', {
       userProfile: userProfileString,
     });
-    const res = await this.openAIClient.sendMessage(getDetailsFromMessagePrompt, message, []);
+    const res = await this.llmClient.sendMessage(getDetailsFromMessagePrompt, message, []);
     try {
       userProfile.personalDetails = this.parseMarkdownToJson(res);
       this.userStore.saveUser(userProfile);
@@ -98,7 +99,7 @@ export class MessageHandler {
       userProfile: userProfileString,
       randomTeacher: randomTeacher,
     });
-    return await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
+    return await this.llmClient.sendMessage(systemMessage, message, userData.messages);
   };
 
   public async createScheduledMessage(userId: string): Promise<string> {
@@ -110,7 +111,7 @@ export class MessageHandler {
       currentTime: new Date().toISOString(),
     });
 
-    const response = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
+    const response = await this.llmClient.sendMessage(systemMessage, '', userData.messages);
     this.updateMessageHistory(userData, StandardRoles.assistant, response);
     this.userStore.saveUser(userData.profile);
 
@@ -122,7 +123,7 @@ export class MessageHandler {
     const systemMessage = getPrompt('enhanceSummary', {
       combinedText: combinedText,
     });
-    profile.conversationSummary = await this.openAIClient.sendMessage(systemMessage, '', []);
+    profile.conversationSummary = await this.llmClient.sendMessage(systemMessage, '', []);
     this.userStore.saveUser(profile);
   };
 
