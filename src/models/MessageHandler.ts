@@ -4,8 +4,9 @@ import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
 import logger from '../utils/logger';
-import LlmClient from '../providers/LlmClient';
 import LLMProvider from '../providers/LlmProvider';
+import { get } from 'http';
+import OpenAIApi from '../providers/OpenAiApi';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
@@ -19,7 +20,7 @@ export class MessageHandler {
   constructor(userStore: UserStore, ratingSelector?: RatingSelector) {
     this.userStore = userStore;
     this.ratingSelector = ratingSelector;
-    this.llmClient = new LlmClient() as LLMProvider;
+    this.llmClient = this.getLLMClient();
   }
 
   greetTheUser = async (userId: string): Promise<string> => {
@@ -180,4 +181,11 @@ export class MessageHandler {
       index === 0 ? match.toLowerCase() : match.toUpperCase().replace(/\s+/g, ''),
     );
   };
+  getLLMClient = (): LLMProvider => {
+    switch (process.env.LLM_PROVIDER) {
+      default:
+        logger.info('Using OpenAI as the LLM provider');
+        return new OpenAIApi();
+    }
+  }
 }
