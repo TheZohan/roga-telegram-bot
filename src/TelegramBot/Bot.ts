@@ -57,47 +57,33 @@ export const initializeBot = async (): Promise<Telegraf> => {
     await ctx.sendChatAction('typing');
     const userId: string = ctx.from?.id.toString();
 
-    try {
-      const ratingSelector = new RatingSelector(bot, ctx);
-      const messageHandler = new MessageHandler(userStore, ratingSelector);
-      const botReply = await messageHandler.handleMessage(userId, userMessage);
-      if (botReply) {
-        await ctx.reply(botReply);
-      }
-      console.timeEnd('OnTelegramMessage');
-    } catch (error) {
-      logger.error('Error handling Telegram message', error);
+    const maxRetries = 3;
+    let retries = 0;
+    let success = false;
 
-      // Retry
-      const maxRetries = 3;
-      let retries = 0;
-      let success = false;
-
-      while (retries < maxRetries && !success) {
-        try {
-          const ratingSelector = new RatingSelector(bot, ctx);
-          const messageHandler = new MessageHandler(userStore, ratingSelector);
-          const botReply = await messageHandler.handleMessage(userId, userMessage);
-          if (botReply) {
-            await ctx.reply(botReply);
-          }
-          success = true;
-        } catch (retryError) {
-          retries++;
-          logger.warn(`Retry attempt ${retries} failed`, retryError);
-          // Wait for a short time before retrying (e.g., 1 second)
-          await new Promise((resolve) => setTimeout(resolve, 1000));
+    do {
+      try {
+        const ratingSelector = new RatingSelector(bot, ctx);
+        const messageHandler = new MessageHandler(userStore, ratingSelector);
+        const botReply = await messageHandler.handleMessage(userId, userMessage);
+        if (botReply) {
+          await ctx.reply(botReply);
         }
+        success = true;
+      } catch (error) {
+        retries++;
+        logger.error('Error handling Telegram message. Retry attempt ${retries} failed', error);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
       }
+    } while (retries < maxRetries && !success);
 
-      if (!success) {
-        // All retries failed, inform the user
-        const errorMessage = i18n.t('errorMessage');
-        await ctx.reply(errorMessage);
-      }
-
-      console.timeEnd('OnTelegramMessage');
+    if (!success) {
+      // All retries failed, inform the user
+      const errorMessage = i18n.t('errorMessage');
+      await ctx.reply(errorMessage);
     }
+
+    console.timeEnd('OnTelegramMessage');
   });
 
   bot.launch().then(() => {
