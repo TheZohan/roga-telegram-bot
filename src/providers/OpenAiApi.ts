@@ -1,15 +1,15 @@
-import LLMProvider from './LlmProvider';
+import { LLMProvider } from './LlmProvider';
 import { ChatCompletionMessageParam, ChatCompletionRole } from 'openai/resources';
 import OpenAI from 'openai';
 import logger from '../utils/logger';
 import { Message, StandardRoles } from '../user/UserProfile';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
+
 
 export default class OpenAIApi implements LLMProvider {
-
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY!,
+  });
   private readonly API_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
   async sendMessage(systemMessage: string, userMessage: string, messageHistory: Message[]): Promise<string> {
     const messages: ChatCompletionMessageParam[] = [
@@ -25,7 +25,7 @@ export default class OpenAIApi implements LLMProvider {
       max_tokens: 150, // Limit the response length
     };
     try {
-      const chatCompletion = await openai.chat.completions.create(completionRequest);
+      const chatCompletion = await this.openai.chat.completions.create(completionRequest);
       const responseChoices = chatCompletion.choices;
       logger.debug('Response:', responseChoices);
       return responseChoices[0].message.content?.toString() || "I don't know what to say...";
