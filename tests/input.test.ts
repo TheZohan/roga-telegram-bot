@@ -72,7 +72,6 @@ describe('basic tests', () => {
     satisfactionLevel: [],
     lastTimeAskedForSatisfactionLevel: new Date(),
   };
-
   userStore.saveUser(userProfile);
 
   afterEach(() => {
