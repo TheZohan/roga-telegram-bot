@@ -3,7 +3,7 @@ import { LLMProvider } from '../src/providers/LlmProvider';
 interface StringToStringObject {
   [key: string]: string;
 }
-export class OpenAIMock implements LLMProvider {
+export class LlmClientMock implements LLMProvider {
   responses: StringToStringObject;
   constructor() {
     this.responses = {};
