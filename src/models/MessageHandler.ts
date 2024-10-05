@@ -41,18 +41,23 @@ export class MessageHandler {
   };
 
   handleMessage = async (userId: string, userMessage: string): Promise<string> => {
-    logger.debug('Handling message', userMessage, 'for user', userId);
-    const userData = await this.userStore.getUserData(userId);
-    userData.profile = {
-      ...userData.profile,
-      username: userId,
-    };
-    this.updateMessageHistory(userData, StandardRoles.user, userMessage);
-    const botReply = await this.respondToUser(userData, userMessage);
-    this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
-    this.enhanceSummary(userData.profile, userMessage, botReply);
-    this.getDetailsFromMessage(userData.profile, userMessage);
-    return botReply;
+    try {
+      logger.debug('Handling message', userMessage, 'for user', userId);
+      const userData = await this.userStore.getUserData(userId);
+      userData.profile = {
+        ...userData.profile,
+        username: userId,
+      };
+      this.updateMessageHistory(userData, StandardRoles.user, userMessage);
+      const botReply = await this.respondToUser(userData, userMessage);
+      this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
+      this.enhanceSummary(userData.profile, userMessage, botReply);
+      this.getDetailsFromMessage(userData.profile, userMessage);
+      return botReply;
+    } catch (error) {
+      logger.error('Error handling message:', error);
+      throw error; // Re-throw the error to be handled by the calling function
+    }
   };
 
   getDetailsFromMessage = async (userProfile: UserProfile, message: string) => {
@@ -60,12 +65,14 @@ export class MessageHandler {
     const getDetailsFromMessagePrompt = getPrompt('getDetails', {
       userProfile: userProfileString,
     });
-    const res = await this.llmClient.sendMessage(getDetailsFromMessagePrompt, message, []);
+
     try {
+      const res = await this.llmClient.sendMessage(getDetailsFromMessagePrompt, message, []);
       userProfile.personalDetails = this.parseMarkdownToJson(res);
       this.userStore.saveUser(userProfile);
     } catch (error) {
-      console.log("can't parse message");
+      logger.error('Faile to get details from message:', error);
+      throw error; // Re-throw the error to be handled by the calling function
     }
   };
 
@@ -102,19 +109,24 @@ export class MessageHandler {
   };
 
   public async createScheduledMessage(userId: string): Promise<string> {
-    const userData: UserData = await this.userStore.getUserData(userId);
-    const userProfileString = JSON.stringify(userData.profile);
+    try {
+      const userData: UserData = await this.userStore.getUserData(userId);
+      const userProfileString = JSON.stringify(userData.profile);
 
-    const systemMessage = getPrompt('createScheduledMessage', {
-      userProfile: userProfileString,
-      currentTime: new Date().toISOString(),
-    });
+      const systemMessage = getPrompt('createScheduledMessage', {
+        userProfile: userProfileString,
+        currentTime: new Date().toISOString(),
+      });
 
-    const response = await this.llmClient.sendMessage(systemMessage, '', userData.messages);
-    this.updateMessageHistory(userData, StandardRoles.assistant, response);
-    this.userStore.saveUser(userData.profile);
+      const response = await this.llmClient.sendMessage(systemMessage, '', userData.messages);
+      this.updateMessageHistory(userData, StandardRoles.assistant, response);
+      this.userStore.saveUser(userData.profile);
 
-    return response;
+      return response;
+    } catch (error) {
+      logger.error('Error creating scheduled message:', error);
+      throw error; // Re-throw the error to be handled by the calling function
+    }
   }
 
   enhanceSummary = async (profile: UserProfile, userMessage: string, botResponse: string) => {

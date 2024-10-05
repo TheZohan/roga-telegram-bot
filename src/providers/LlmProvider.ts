@@ -11,4 +11,4 @@ export const getLLMClient = (): LLMProvider => {
       logger.info('Using OpenAI as the LLM provider');
       return new OpenAIApi();
   }
-}
+};

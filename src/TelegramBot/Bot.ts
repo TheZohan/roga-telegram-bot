@@ -24,12 +24,18 @@ export const initializeBot = async (): Promise<Telegraf> => {
 
   bot.start(async (ctx) => {
     console.time('onStart');
-    const userId: string = ctx.from?.id.toString();
-    logger.info('New user', userId);
-    const messageHandler = new MessageHandler(userStore);
-    const greeting = await messageHandler.greetTheUser(userId);
-    ctx.reply(greeting);
-    console.timeEnd('onStart');
+    try {
+      const userId: string = ctx.from?.id.toString();
+      logger.info('New user', userId);
+      const messageHandler = new MessageHandler(userStore);
+      const greeting = await messageHandler.greetTheUser(userId);
+      await ctx.reply(greeting);
+    } catch (error) {
+      logger.error('Error in bot.start', error);
+      await ctx.reply(i18n.t('errorMessage'));
+    } finally {
+      console.timeEnd('onStart');
+    }
   });
 
   bot.help((ctx) => {
@@ -51,23 +57,33 @@ export const initializeBot = async (): Promise<Telegraf> => {
     await ctx.sendChatAction('typing');
     const userId: string = ctx.from?.id.toString();
 
-    try {
-      const ratingSelector = new RatingSelector(bot, ctx);
-      const messageHandler = new MessageHandler(userStore, ratingSelector);
-      const botReply = await messageHandler.handleMessage(userId, userMessage);
-      if (botReply) {
-        await ctx.reply(botReply);
-      }
-      console.timeEnd('OnTelegramMessage');
-    } catch (error) {
-      logger.error('Error handling Telegram message', error);
-      const message = JSON.stringify(
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (error as any)?.response?.data?.error ?? 'Unable to extract error',
-      );
+    const maxRetries = 3;
+    let retries = 0;
+    let success = false;
 
-      await ctx.reply('Whoops! There was an error while talking to OpenAI. Error: ' + message);
+    do {
+      try {
+        const ratingSelector = new RatingSelector(bot, ctx);
+        const messageHandler = new MessageHandler(userStore, ratingSelector);
+        const botReply = await messageHandler.handleMessage(userId, userMessage);
+        if (botReply) {
+          await ctx.reply(botReply);
+        }
+        success = true;
+      } catch (error) {
+        retries++;
+        logger.error('Error handling Telegram message. Retry attempt ${retries} failed', error);
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+      }
+    } while (retries < maxRetries && !success);
+
+    if (!success) {
+      // All retries failed, inform the user
+      const errorMessage = i18n.t('errorMessage');
+      await ctx.reply(errorMessage);
     }
+
+    console.timeEnd('OnTelegramMessage');
   });
 
   bot.launch().then(() => {
