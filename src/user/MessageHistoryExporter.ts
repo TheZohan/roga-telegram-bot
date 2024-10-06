@@ -1,62 +1,13 @@
-import { createClient, RedisClientType } from 'redis';
 import { createObjectCsvWriter } from 'csv-writer';
 import fs from 'fs';
 import iconv from 'iconv-lite';
 import logger from '../utils/logger';
-
-interface Message {
-  id: string;
-  userId: string;
-  timestamp: Date;
-  content: string;
-}
-
-class RedisUserStore {
-  private client: RedisClientType;
-
-  constructor(
-    private host: string,
-    private port: number,
-  ) {
-    this.client = createClient({
-      socket: {
-        host: this.host,
-        port: this.port,
-      },
-    });
-
-    this.client.on('error', (err) => {
-      logger.error('Redis Client Error', err);
-      throw new Error("Couldn't connect to Redis");
-    });
-  }
-
-  async connect(): Promise<void> {
-    await this.client.connect();
-    logger.info('Connected to Redis');
-  }
-
-  async disconnect(): Promise<void> {
-    await this.client.disconnect();
-    logger.info('Disconnected from Redis');
-  }
-
-  // Fetch all user message keys
-  async getAllMessageKeys(): Promise<string[]> {
-    return await this.client.keys('messages:*');
-  }
-
-  // Get all messages for a specific user
-  async getMessageHistory(userId: string): Promise<Message[]> {
-    const messages = await this.client.lRange(`messages:${userId}`, 0, -1);
-    return messages.map((message) => JSON.parse(message));
-  }
-}
+import { RedisUserStore } from './RedisUserStore';
+import { Message } from './UserProfile';
 
 export const exportMessageHistoryToCsv = async (): Promise<string> => {
-  const redisHost = process.env.REDISHOST!;
-  const redisPort = +process.env.REDISPORT!;
-  const redisStore = new RedisUserStore(redisHost, redisPort);
+  const redisUrl = process.env.REDIS_URL!;
+  const redisStore = new RedisUserStore(redisUrl);
 
   try {
     await redisStore.connect();

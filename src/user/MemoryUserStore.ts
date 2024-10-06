@@ -5,6 +5,7 @@ import { UserStore } from './UserStore';
 export class MemoryUserStore implements UserStore {
   private store: Map<string, UserProfile> = new Map();
   private conversationHistory: Map<string, Message[]> = new Map();
+  private users: Map<string, UserProfile> = new Map();
 
   async saveUser(user: UserProfile): Promise<void> {
     this.store.set(user.id, user);
@@ -43,6 +44,10 @@ export class MemoryUserStore implements UserStore {
     userProfile.conversationSummary = '';
     this.saveUser(userProfile);
     this.conversationHistory.set(userId, []);
+  }
+
+  async getActiveUsers(): Promise<UserProfile[]> {
+    return Array.from(this.users.values());
   }
 
   getBackups(): Promise<string[]> {

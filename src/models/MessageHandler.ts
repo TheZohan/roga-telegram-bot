@@ -1,24 +1,21 @@
-import { OpenAIClient } from '../providers/OpenAIClient';
-import { LLMProvider } from '../providers/LlmProvider';
 import { UserProfile, Message, StandardRoles, Language, UserData } from '../user/UserProfile';
 import { getPrompt } from '../prompts/PromptsLoader';
 import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
 import logger from '../utils/logger';
-
+import { LLMProvider, getLLMClient } from '../providers/LlmProvider';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 export class MessageHandler {
   userStore: UserStore;
   ratingSelector?: RatingSelector;
-  openAIClient: LLMProvider;
+  llmClient: LLMProvider;
 
   constructor(userStore: UserStore, ratingSelector?: RatingSelector) {
     this.userStore = userStore;
     this.ratingSelector = ratingSelector;
-    this.openAIClient = new OpenAIClient();
-    //this.openAIClient = new CohereApi();
+    this.llmClient = getLLMClient();
   }
 
   greetTheUser = async (userId: string): Promise<string> => {
@@ -34,39 +31,43 @@ export class MessageHandler {
       userProfile: userProfileString,
       askForTheirName: askForTheirNameString,
     });
-    const response = await this.openAIClient.sendMessage(systemMessage, '', userData.messages);
+    const response = await this.llmClient.sendMessage(systemMessage, '', userData.messages);
     this.updateMessageHistory(userData, StandardRoles.assistant, response);
     this.userStore.saveUser(userData.profile);
     return response;
   };
 
   handleMessage = async (userId: string, userMessage: string): Promise<string> => {
-    logger.debug('Handling message', userMessage, 'for user', userId);
-    const userData = await this.userStore.getUserData(userId);
-    userData.profile = {
-      ...userData.profile,
-      username: userId,
-    };
-    this.updateMessageHistory(userData, StandardRoles.user, userMessage);
-    const botReply = await this.respondToUser(userData, userMessage);
-    this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
-    this.processConversation(userData.profile, userMessage, botReply);
-    return botReply;
+    try {
+      logger.debug('Handling message', userMessage, 'for user', userId);
+      const userData = await this.userStore.getUserData(userId);
+      userData.profile = {
+        ...userData.profile,
+        username: userId,
+      };
+      this.updateMessageHistory(userData, StandardRoles.user, userMessage);
+      const botReply = await this.respondToUser(userData, userMessage);
+      this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
+      this.processConversation(userData.profile, userMessage, botReply);
+      return botReply;
+    } catch (error) {
+      logger.error('Error handling message:', error);
+      throw error; // Re-throw the error to be handled by the calling function
+    }
   };
 
   processConversation = async (profile: UserProfile, userMessage: string, BotMessage: string) => {
-    logger.debug('Start processing conversation\n');
-    logger.debug('user profile before processing: ', profile);
-    const personalDetailsStrinfied = JSON.stringify(profile.personalDetails);
-    const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${BotMessage}\n`;
-    const processConversationPrompt = getPrompt('processConversation', {
-      personalDetails: personalDetailsStrinfied,
-      combinedText: combinedText,
-      date: new Date().toISOString()
-    });
-    const res = await this.openAIClient.sendMessage(processConversationPrompt, '', []);
+    logger.debug('processConversation. User profile before processing: ', profile);
     let currentKey: string = '';
     try {
+      const personalDetailsStrinfied = JSON.stringify(profile.personalDetails);
+      const combinedText = `${profile.conversationSummary} User: ${userMessage} Bot: ${BotMessage}\n`;
+      const processConversationPrompt = getPrompt('processConversation', {
+        personalDetails: personalDetailsStrinfied,
+        combinedText: combinedText,
+        date: new Date().toISOString(),
+      });
+      const res = await this.llmClient.sendMessage(processConversationPrompt, '', []);
       const responses: Map<string, string> = this.parseMultiResponse(res);
       if (responses.has('SUMMARY') && responses.get('SUMMARY') !== '') {
         currentKey = 'SUMMARY';
@@ -83,12 +84,9 @@ export class MessageHandler {
     }
     if (currentKey == 'COMPLETED') {
       this.userStore.saveUser(profile);
-      logger.info('proccessing conversation completed Successfully');
+      logger.info('proccessing conversation completed Successfully', profile);
     }
-    logger.debug('user profile after processing:');
-    logger.debug(profile);
-    logger.debug('End processing conversation');
-  }
+  };
 
   getRandomNumber(min: number, max: number): number {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -119,8 +117,29 @@ export class MessageHandler {
       userProfile: userProfileString,
       randomTeacher: randomTeacher,
     });
-    return await this.openAIClient.sendMessage(systemMessage, message, userData.messages);
+    return await this.llmClient.sendMessage(systemMessage, message, userData.messages);
   };
+
+  public async createScheduledMessage(userId: string): Promise<string> {
+    try {
+      const userData: UserData = await this.userStore.getUserData(userId);
+      const userProfileString = JSON.stringify(userData.profile);
+
+      const systemMessage = getPrompt('createScheduledMessage', {
+        userProfile: userProfileString,
+        currentTime: new Date().toISOString(),
+      });
+
+      const response = await this.llmClient.sendMessage(systemMessage, '', userData.messages);
+      this.updateMessageHistory(userData, StandardRoles.assistant, response);
+      this.userStore.saveUser(userData.profile);
+
+      return response;
+    } catch (error) {
+      logger.error('Error creating scheduled message:', error);
+      throw error; // Re-throw the error to be handled by the calling function
+    }
+  }
 
   updateMessageHistory = (UserData: UserData, role: StandardRoles, newMessage: string): void => {
     const message: Message = {
@@ -169,13 +188,13 @@ export class MessageHandler {
     logger.debug(result);
     logger.debug('Finished parsing personal details');
     return result;
-  }
+  };
 
   camelCase = (input: string): string => {
     return input.replace(/(?:^\w|[A-Z]|\b\w|\s+)/g, (match, index) =>
       index === 0 ? match.toLowerCase() : match.toUpperCase().replace(/\s+/g, ''),
     );
-  }
+  };
 
   parseMultiResponse(input: string): Map<string, string> {
     logger.debug('Started Parsing multi response');
@@ -210,6 +229,5 @@ export class MessageHandler {
     }
     logger.debug('finished Parsing multi response');
     return sectionsMap;
-
   }
 }

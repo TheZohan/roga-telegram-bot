@@ -1,12 +1,14 @@
 import { mock } from 'ts-jest-mocker';
-import { MessageHandler } from '../src/models/MessageHandler';
 import { RatingSelector } from '../src/TelegramBot/ratingSelector';
 import { UserStore } from '../src/user/UserStore';
 import { Language, PersonalDetails, UserProfile } from '../src/user/UserProfile';
 import * as PromptsLoader from '../src/prompts/PromptsLoader';
 import { getPrompt } from '../src/prompts/PromptsLoader';
-import { OpenAIMock, createInput } from './OpenAiMock';
+import { LlmClientMock, createInput } from './LlmClientMock';
 import { MemoryUserStore } from '../src/user/MemoryUserStore';
+import { MessageHandler } from '../src/models/MessageHandler';
+import * as LLMProvider from '../src/providers/LlmProvider';
+
 interface Responses {
   userMessage: string;
   botMessage: string;
@@ -15,15 +17,13 @@ interface Responses {
   personalDetails?: PersonalDetails;
 }
 
-const openAIClientMock: OpenAIMock = new OpenAIMock();
-jest.mock('../src/providers/OpenAIClient', () => {
-  return {
-    OpenAIClient: jest.fn().mockImplementation(() => {
-      return openAIClientMock;
-    }),
-  };
+const LlmClient: LlmClientMock = new LlmClientMock();
+jest.spyOn(LLMProvider, 'getLLMClient').mockImplementation(() => {
+  console.log('getLLMClient');
+  return LlmClient;
 });
 
+// Mock getPrompt with partial implementation
 const originalGetPrompt = PromptsLoader.getPrompt;
 jest.spyOn(PromptsLoader, 'getPrompt').mockImplementation((promptName, data) => {
   delete data.userProfile;
@@ -37,21 +37,18 @@ const setResponses = async (responses: Responses, user: UserProfile) => {
     combinedText: combinedText,
   });
 
-  openAIClientMock.setResponse(createInput(summeryPrompt, responses.userMessage), responses.summery);
+  LlmClient.setResponse(createInput(summeryPrompt, responses.userMessage), responses.summery);
 
   const personalDetails = getPrompt('getDetails', {});
-  openAIClientMock.setResponse(
+  LlmClient.setResponse(
     createInput(personalDetails, responses.userMessage),
     '"' + JSON.stringify(responses.personalDetails + '"'),
   );
 
-  openAIClientMock.setResponse(
-    createInput(getPrompt('respondToUser', {}), responses.userMessage),
-    responses.botMessage,
-  );
+  LlmClient.setResponse(createInput(getPrompt('respondToUser', {}), responses.userMessage), responses.botMessage);
 };
 
-// create message handler
+// Create the mocked ratingSelector and user store
 const ratingSelector = mock<RatingSelector>();
 const userStore: UserStore = new MemoryUserStore();
 const messageHandler = new MessageHandler(userStore, ratingSelector);
@@ -76,10 +73,13 @@ describe('basic tests', () => {
     lastTimeAskedForSatisfactionLevel: new Date(),
   };
   userStore.saveUser(userProfile);
+
   afterEach(() => {
+    jest.clearAllMocks();
     userStore.clearMessageHistory('yogev');
   });
-  it('Should greet the user and how ask how he is, recived : Hi', async () => {
+
+  it('Should greet the user and ask how he is when receiving: Hi', async () => {
     responses = {
       userMessage: 'Hi',
       botMessage: 'Hello! How can I help you today?',
@@ -87,7 +87,10 @@ describe('basic tests', () => {
       summery: 'The user said hi and I responded with hello how can I help you today',
       personalDetails: userProfile.personalDetails,
     };
-    setResponses(responses, userProfile);
-    expect(messageHandler.handleMessage('yogev', responses.userMessage)).resolves.toBe(responses.botMessage);
+
+    await setResponses(responses, userProfile);
+
+    // Act & Assert
+    await expect(messageHandler.handleMessage('yogev', responses.userMessage)).resolves.toBe(responses.botMessage);
   });
 });
