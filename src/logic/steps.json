@@ -1,0 +1,20 @@
+[
+    {
+      "id": "askForTheUserName",
+      "promptName": "askForTheUsersName",
+      "description": "Ask for the user's name",
+      "finishCriteria": "User has provided their name"
+    },
+    {
+      "id": "askGoal",
+      "promptName": "askGoal",
+      "description": "Ask the user about their main goal or intention",
+      "finishCriteria": "User has stated their goal"
+    },
+    {
+      "id": "suggestPractice",
+      "promptName": "suggestPractice",
+      "description": "Suggest a mindfulness practice based on the user's goal",
+      "finishCriteria": "User has acknowledged the suggestion"
+    }
+  ]

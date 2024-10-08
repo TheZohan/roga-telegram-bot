@@ -5,17 +5,23 @@ import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
 import logger from '../utils/logger';
 import { LLMProvider, getLLMClient } from '../providers/LlmProvider';
+import { StepManager, Step } from './StepManager'; // Add this import
 
 const MESSAGES_HISTORY_LENGTH = 20;
+
+type SectionContent = Record<string, unknown>;
+
 export class MessageHandler {
   userStore: UserStore;
   ratingSelector?: RatingSelector;
   llmClient: LLMProvider;
+  stepManager: StepManager;
 
   constructor(userStore: UserStore, ratingSelector?: RatingSelector) {
     this.userStore = userStore;
     this.ratingSelector = ratingSelector;
     this.llmClient = getLLMClient();
+    this.stepManager = new StepManager();
   }
 
   greetTheUser = async (userId: string): Promise<string> => {
@@ -23,41 +29,36 @@ export class MessageHandler {
     const userProfileString = JSON.stringify(userData.profile);
     const defaultLanguage: keyof typeof Language = process.env.LANGUAGE! as keyof typeof Language;
     const language: string = Language[defaultLanguage];
-    logger.debug('language', language);
-    const askForTheirNameString =
-      userData.profile.personalDetails.firstName == undefined ? 'you have to ask for the users name' : '';
+    logger.debug(`language: ${language}`);
     const systemMessage = getPrompt('greeting', {
       langauge: language,
       userProfile: userProfileString,
-      askForTheirName: askForTheirNameString,
     });
     const response = await this.llmClient.sendMessage(systemMessage, '', userData.messages);
     this.updateMessageHistory(userData, StandardRoles.assistant, response);
-    this.userStore.saveUser(userData.profile);
     return response;
   };
 
   handleMessage = async (userId: string, userMessage: string): Promise<string> => {
     try {
-      logger.debug('Handling message', userMessage, 'for user', userId);
+      logger.debug(`Handling message: ${userMessage}. User: ${userId}`);
       const userData = await this.userStore.getUserData(userId);
-      userData.profile = {
-        ...userData.profile,
-        username: userId,
-      };
       this.updateMessageHistory(userData, StandardRoles.user, userMessage);
-      const botReply = await this.respondToUser(userData, userMessage);
+      const currentStep = this.stepManager.getCurrentStep();
+      logger.debug(`User: ${userId}. Current step: ${currentStep.id}`);
+      const botReply = await this.executeCurrentStep(currentStep, userData, userMessage);
       this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
       this.processConversation(userData.profile, userMessage, botReply);
+      this.checkAndAdvanceStep(userData, userMessage, botReply, currentStep);
       return botReply;
     } catch (error) {
-      logger.error('Error handling message:', error);
+      logger.error(`Error handling message: ${error}`);
       throw error; // Re-throw the error to be handled by the calling function
     }
   };
 
   processConversation = async (profile: UserProfile, userMessage: string, BotMessage: string) => {
-    logger.debug('processConversation. User profile before processing: ', profile);
+    logger.debug(`processConversation. User profile before processing: ${profile}`);
     let currentKey: string = '';
     try {
       const personalDetailsStrinfied = JSON.stringify(profile.personalDetails);
@@ -80,17 +81,13 @@ export class MessageHandler {
       }
       currentKey = 'COMPLETED';
     } catch (error) {
-      logger.error("Can't parse " + currentKey + ' from the response');
+      logger.error(`Can't parse ${currentKey} from the response`);
     }
     if (currentKey == 'COMPLETED') {
       this.userStore.saveUser(profile);
-      logger.info('proccessing conversation completed Successfully', profile);
+      logger.info(`proccessing conversation completed Successfully. Profile: ${profile}`);
     }
   };
-
-  getRandomNumber(min: number, max: number): number {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-  }
 
   respondToUser = async (userData: UserData, message: string): Promise<string> => {
     // Forward the message to OpenAI and get a response
@@ -120,6 +117,15 @@ export class MessageHandler {
     return await this.llmClient.sendMessage(systemMessage, message, userData.messages);
   };
 
+  executeCurrentStep = async (step: Step, userData: UserData, message: string): Promise<string> => {
+    const userProfileString = JSON.stringify(userData.profile);
+    const systemMessage = getPrompt(step.promptName, {
+      userProfile: userProfileString,
+      stepDescription: step.description,
+    });
+    return await this.llmClient.sendMessage(systemMessage, message, userData.messages);
+  };
+
   public async createScheduledMessage(userId: string): Promise<string> {
     try {
       const userData: UserData = await this.userStore.getUserData(userId);
@@ -141,39 +147,42 @@ export class MessageHandler {
     }
   }
 
-  updateMessageHistory = (UserData: UserData, role: StandardRoles, newMessage: string): void => {
+  updateMessageHistory = (userData: UserData, role: StandardRoles, newMessage: string): void => {
     const message: Message = {
       id: uuidv4(),
-      userId: UserData.profile.id,
+      userId: userData.profile.id,
       role: role,
       timestamp: new Date(),
       message: newMessage,
     };
-    UserData.messages.push(message);
-    if (UserData.messages.length > MESSAGES_HISTORY_LENGTH) {
-      UserData.messages.shift();
+    userData.messages.push(message);
+    if (userData.messages.length > MESSAGES_HISTORY_LENGTH) {
+      userData.messages.shift();
     }
 
     this.userStore.addMessage(message);
+    this.userStore.saveUser(userData.profile);
   };
 
-  parsePersonalDeatils = (mdContent: string): Record<string, any> => {
+  parsePersonalDeatils = (mdContent: string): Record<string, SectionContent> => {
     logger.debug('Started parsing personal details');
     const lines = mdContent.split('\n');
-    const result: Record<string, any> = {};
+    const result: Record<string, SectionContent> = {};
+    let currentSection: string | null = null;
     let currentArray: string[] | null = null;
 
     lines.forEach((line) => {
       line = line.trim();
 
       if (line.startsWith('# ')) {
-        // Main section, use the section as a prefix for keys
-        currentArray = null;
+        // Main section, start new JSON object
+        currentSection = this.camelCase(line.slice(2).trim());
+        result[currentSection] = {};
       } else if (line.startsWith('## ')) {
         // Subsection, start a new array with a specific key
         const subKey = this.camelCase(line.slice(3).trim());
         currentArray = [];
-        result[subKey] = currentArray;
+        result[currentSection as string][subKey] = currentArray;
       } else if (line.startsWith('- ') && currentArray) {
         // Item in an array
         currentArray.push(line.slice(2).trim());
@@ -181,12 +190,11 @@ export class MessageHandler {
         // Single attribute
         const [keyPart, value] = line.split(':').map((s) => s.trim());
         const key = this.camelCase(keyPart.replace(/\*\*/g, '')); // Remove ** from keys and convert to camelCase
-        result[key] = value;
+        result[currentSection as string][key] = value;
       }
     });
-    logger.debug('presonal details :');
-    logger.debug(result);
-    logger.debug('Finished parsing personal details');
+    logger.debug('Finished parsing personal details. result: ', result);
+
     return result;
   };
 
@@ -197,7 +205,7 @@ export class MessageHandler {
   };
 
   parseMultiResponse(input: string): Map<string, string> {
-    logger.debug('Started Parsing multi response');
+    logger.debug(`Started Parsing multi response: ${input}`);
     const sectionsMap = new Map<string, string>();
     const lines = input.split('\n');
     let currentSection = '';
@@ -230,4 +238,26 @@ export class MessageHandler {
     logger.debug('finished Parsing multi response');
     return sectionsMap;
   }
+
+  private checkAndAdvanceStep = async (
+    userData: UserData,
+    userMessage: string,
+    botReply: string,
+    currentStep: Step,
+  ): Promise<void> => {
+    const isFinished = await this.isStepFinished(userData, userMessage, botReply, currentStep);
+    if (isFinished) {
+      this.stepManager.advanceStep();
+    }
+  };
+
+  isStepFinished = async (userData: UserData, userMessage: string, botReply: string, step: Step): Promise<boolean> => {
+    const finishCriteriaPrompt = getPrompt('evaluateStepFinish', {
+      stepFinishCriteria: step.finishCriteria,
+      userMessage: userMessage,
+      botReply: botReply,
+    });
+    const evaluation = await this.llmClient.sendMessage(finishCriteriaPrompt, '', []);
+    return evaluation.trim() === '1';
+  };
 }
