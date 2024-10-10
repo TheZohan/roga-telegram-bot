@@ -19,6 +19,22 @@ export const getPrompt = (
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   variables: Record<string, any>,
 ): string => {
+  const promptTemplate = prompts[action];
+  if (!promptTemplate) {
+    throw new Error(`Prompt for action "${action}" not found`);
+  }
+
+  const template = Handlebars.compile(promptTemplate);
+  logger.debug(`Prompt ${action}: ${template(variables)}`);
+  return template(variables);
+};
+
+// Function to get a prompt with variables replaced
+export const getExtendedPrompt = (
+  action: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  variables: Record<string, any>,
+): string => {
   const promptTemplate = prompts['prefix'] + ' ' + prompts[action] + ' ' + prompts['suffix'];
   if (!promptTemplate) {
     throw new Error(`Prompt for action "${action}" not found`);

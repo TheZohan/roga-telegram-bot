@@ -41,6 +41,7 @@ export class RedisUserStore implements UserStore {
           satisfactionLevel: [],
           personalDetails: {},
           language: Language.heb,
+          currentStep: 'greeting',
         } as UserProfile);
   }
 
@@ -72,9 +73,7 @@ export class RedisUserStore implements UserStore {
         // Trim the list to maintain max number of backups
         await this.client.lTrim(backupListKey, 0, MAX_HISTORY - 1);
         // Delete the current message history
-        await this.client.del(`messages:${userId}`);
-        userProfile.conversationSummary = '';
-        await this.saveUser(userProfile);
+        await this.client.del(`user:${userId}`);
         logger.info(`User profile for user ${userId} backed up and cleared.`);
       }
       const messageKey = `messages:${userId}`;

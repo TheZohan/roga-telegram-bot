@@ -5,9 +5,17 @@ import logger from '../utils/logger';
 import { Message, StandardRoles } from '../user/UserProfile';
 
 export default class OpenAIApi implements LLMProvider {
-  openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY!,
-  });
+  private openai: OpenAI;
+  private aImodel: string;
+
+  constructor() {
+    this.openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY!,
+    });
+    this.aImodel = process.env.OPENAI_MODEL || 'gpt-4o';
+    logger.info('Using Open AI model: ' + this.aImodel);
+  }
+
   private readonly API_ENDPOINT = 'https://api.openai.com/v1/chat/completions';
   async sendMessage(systemMessage: string, userMessage: string, messageHistory: Message[]): Promise<string> {
     const messages: ChatCompletionMessageParam[] = [
@@ -32,6 +40,7 @@ export default class OpenAIApi implements LLMProvider {
       throw error;
     }
   }
+
   formatMessageHistory(messageHistory: Message[]): ChatCompletionMessageParam[] {
     return messageHistory.map((message: Message) => {
       let role: ChatCompletionRole;

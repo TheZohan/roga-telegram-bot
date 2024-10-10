@@ -1,0 +1,22 @@
+# Steps definitions
+---
+- id: greeting
+  promptName: GreetTheUser
+  description: Greet the user
+  finishCriteria: The user was greeted
+  nextStep: AskForTheUserName
+- id: AskForTheUserName
+  promptName: askForTheUsersName
+  description: Ask for the user's name
+  finishCriteria: User has provided their name
+  nextStep: DiscoverUserGoal
+- id: DiscoverUserGoal
+  promptName: DiscoverUserGoal
+  description: Ask the user about their main goal or intention
+  finishCriteria: User has stated their goal
+  nextStep: ContinueConversation
+- id: ContinueConversation
+  promptName: ReplyToUser
+  description: Continue the conversation with the user
+  finishCriteria: The conversation is over
+  nextStep: ContinueConversation

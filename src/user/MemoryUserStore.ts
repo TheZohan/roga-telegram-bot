@@ -25,6 +25,7 @@ export class MemoryUserStore implements UserStore {
         satisfactionLevel: [],
         personalDetails: {},
         language: Language.heb,
+        currentStep: 'greeting',
       } as UserProfile)
     );
   }

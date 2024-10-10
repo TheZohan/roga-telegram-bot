@@ -1,6 +1,6 @@
 import { Telegraf } from 'telegraf';
 import { createUserStore, UserStore } from '../user/UserStore';
-import { MessageHandler } from '../models/MessageHandler';
+import { MessageHandler } from '../logic/MessageHandler';
 import logger from '../utils/logger';
 import cron from 'node-cron';
 import { initializeBot } from './Bot';

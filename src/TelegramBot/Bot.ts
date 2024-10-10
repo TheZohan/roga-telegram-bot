@@ -5,7 +5,7 @@ import { setLanguageCommand } from './language';
 import { createClearConversationHistoryCommand, restoreConversationHistoryCommand } from './ConversationHistory';
 import i18n from '../utils/il18n';
 import { RatingSelector } from './ratingSelector';
-import { MessageHandler } from '../models/MessageHandler';
+import { MessageHandler } from '../logic/MessageHandler';
 import logger from '../utils/logger';
 
 export const initializeBot = async (): Promise<Telegraf> => {

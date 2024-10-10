@@ -7,6 +7,7 @@ export interface UserProfile {
   language: Language;
   satisfactionLevel: Rating[];
   lastTimeAskedForSatisfactionLevel?: Date;
+  currentStep: string;
 }
 export interface UserData {
   profile: UserProfile;

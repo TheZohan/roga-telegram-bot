@@ -1,36 +1,54 @@
-import stepsData from './steps.json';
+import fs from 'fs';
+import path from 'path';
+import { parse } from 'yaml';
+import logger from '../utils/logger';
+
+export enum Steps {
+  greeting = 'Greeting',
+  askForTheUserName = 'AskForTheUserName',
+  discoverUserGoal = 'DiscoverUserGoal',
+  continueConversation = 'ContinueConversation',
+}
 
 export interface Step {
   id: string;
   promptName: string;
   description: string;
   finishCriteria: string;
+  nextStep: string;
 }
 
+// Load prompts from a YAML file
+const loadSteps = () => {
+  const promptsPath = path.join(__dirname, 'steps.yaml');
+  const rawData = fs.readFileSync(promptsPath, 'utf-8');
+  return parse(rawData);
+};
+
 export class StepManager {
-  private steps: Step[];
-  private currentStepIndex: number;
+  private steps: { [key: string]: Step };
 
   constructor() {
-    this.steps = stepsData as Step[];
-    this.currentStepIndex = 0;
+    const stepList = loadSteps() as Step[];
+    this.steps = stepList.reduce(
+      (acc, step) => {
+        acc[step.id] = step;
+        return acc;
+      },
+      {} as { [key: string]: Step },
+    );
   }
 
-  getCurrentStep(): Step {
-    return this.steps[this.currentStepIndex];
-  }
-
-  advanceStep(): void {
-    if (this.currentStepIndex < this.steps.length - 1) {
-      this.currentStepIndex++;
+  getStep = (stepId: string): Step => {
+    try {
+      const step = this.steps[stepId];
+      if (!step) {
+        throw new Error(`Step with id '${stepId}' not found`);
+      }
+      return step;
+    } catch (error) {
+      logger.error(`Error retrieving step: ${error}`);
+      throw error; // Re-throw the error for the caller to handle
     }
-  }
-
-  isLastStep(): boolean {
-    return this.currentStepIndex === this.steps.length - 1;
-  }
-
-  resetSteps(): void {
-    this.currentStepIndex = 0;
-  }
+  };
 }

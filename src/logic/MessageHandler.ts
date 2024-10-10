@@ -1,11 +1,11 @@
 import { UserProfile, Message, StandardRoles, Language, UserData } from '../user/UserProfile';
-import { getPrompt } from '../prompts/PromptsLoader';
+import { getExtendedPrompt, getPrompt } from '../prompts/PromptsLoader';
 import { UserStore } from '../user/UserStore';
 import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
 import logger from '../utils/logger';
 import { LLMProvider, getLLMClient } from '../providers/LlmProvider';
-import { StepManager, Step } from './StepManager'; // Add this import
+import { StepManager, Step, Steps } from './StepManager'; // Add this import
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
@@ -44,7 +44,10 @@ export class MessageHandler {
       logger.debug(`Handling message: ${userMessage}. User: ${userId}`);
       const userData = await this.userStore.getUserData(userId);
       this.updateMessageHistory(userData, StandardRoles.user, userMessage);
-      const currentStep = this.stepManager.getCurrentStep();
+      if (!userData.profile.currentStep) {
+        userData.profile.currentStep = Steps.discoverUserGoal;
+      }
+      const currentStep: Step = this.stepManager.getStep(userData.profile.currentStep);
       logger.debug(`User: ${userId}. Current step: ${currentStep.id}`);
       const botReply = await this.executeCurrentStep(currentStep, userData, userMessage);
       this.updateMessageHistory(userData, StandardRoles.assistant, botReply);
@@ -119,7 +122,7 @@ export class MessageHandler {
 
   executeCurrentStep = async (step: Step, userData: UserData, message: string): Promise<string> => {
     const userProfileString = JSON.stringify(userData.profile);
-    const systemMessage = getPrompt(step.promptName, {
+    const systemMessage = getExtendedPrompt(step.promptName, {
       userProfile: userProfileString,
       stepDescription: step.description,
     });
@@ -247,7 +250,7 @@ export class MessageHandler {
   ): Promise<void> => {
     const isFinished = await this.isStepFinished(userData, userMessage, botReply, currentStep);
     if (isFinished) {
-      this.stepManager.advanceStep();
+      userData.profile.currentStep = currentStep.nextStep;
     }
   };
 
