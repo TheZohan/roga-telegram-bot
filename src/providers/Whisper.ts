@@ -12,7 +12,7 @@ export default class Whisper implements VoiceToTextProvider {
       const audioFilePath = await getVoiceFile(fileId, bot);
       const transcript = await this.openai.audio.transcriptions.create({
         file: createReadStream(audioFilePath),
-        model: 'whisper-1',
+        model: process.env.WHiSPER_MODEL!,
       })
       return transcript.text;
     } catch (error) {
