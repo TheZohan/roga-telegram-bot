@@ -3,7 +3,7 @@ import path from 'path';
 import { parse } from 'yaml';
 import logger from '../utils/logger';
 
-export enum Steps {
+export enum StepsDefinition {
   greeting = 'Greeting',
   askForTheUserName = 'AskForTheUserName',
   discoverUserGoal = 'DiscoverUserGoal',
@@ -12,7 +12,7 @@ export enum Steps {
 
 export interface Step {
   id: string;
-  promptName: string;
+  prompt: string;
   description: string;
   finishCriteria: string;
   nextStep: string;

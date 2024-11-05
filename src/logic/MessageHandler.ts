@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { RatingSelector } from '../TelegramBot/ratingSelector';
 import logger from '../utils/logger';
 import { LLMProvider, getLLMClient } from '../providers/LlmProvider';
-import { StepManager, Step, Steps } from './StepManager'; // Add this import
+import { StepManager, Step, StepsDefinition } from './StepManager';
 
 const MESSAGES_HISTORY_LENGTH = 20;
 
@@ -45,7 +45,7 @@ export class MessageHandler {
       const userData = await this.userStore.getUserData(userId);
       this.updateMessageHistory(userData, StandardRoles.user, userMessage);
       if (!userData.profile.currentStep) {
-        userData.profile.currentStep = Steps.discoverUserGoal;
+        userData.profile.currentStep = StepsDefinition.discoverUserGoal;
       }
       const currentStep: Step = this.stepManager.getStep(userData.profile.currentStep);
       logger.debug(`User: ${userId}. Current step: ${currentStep.id}`);
@@ -122,9 +122,8 @@ export class MessageHandler {
 
   executeCurrentStep = async (step: Step, userData: UserData, message: string): Promise<string> => {
     const userProfileString = JSON.stringify(userData.profile);
-    const systemMessage = getExtendedPrompt(step.promptName, {
+    const systemMessage = getExtendedPrompt(step.prompt, {
       userProfile: userProfileString,
-      stepDescription: step.description,
     });
     return await this.llmClient.sendMessage(systemMessage, message, userData.messages);
   };
