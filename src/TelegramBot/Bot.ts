@@ -7,6 +7,9 @@ import i18n from '../utils/il18n';
 import { RatingSelector } from './ratingSelector';
 import { MessageHandler } from '../models/MessageHandler';
 import logger from '../utils/logger';
+import Whisper from '../providers/Whisper';
+import { getVoiceToTextClient, VoiceToTextProvider } from '../providers/VoiceToTextProvider';
+import { get } from 'http';
 
 export const initializeBot = async (): Promise<Telegraf> => {
   const telegramToken = process.env.TELEGRAM_TOKEN!;
@@ -44,14 +47,22 @@ export const initializeBot = async (): Promise<Telegraf> => {
 
   bot.on('message', async (ctx: NarrowedContext<Context<Update>, Update.MessageUpdate<Message>>) => {
     console.time('OnTelegramMessage');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const userMessage = (ctx.message as any).text;
-
-    if (!userMessage) {
-      ctx.reply('Please send a text message.');
+    let userMessage: string = '';
+    if ('text' in ctx.message) {
+      userMessage = ctx.message.text;
+    } else if ('voice' in ctx.message) {
+      const VoiceToTextClient: VoiceToTextProvider = getVoiceToTextClient();
+      try{
+        userMessage = await VoiceToTextClient.convertVoiceToText(ctx.message.voice.file_id, bot);
+      } catch (error) {
+        logger.error('Error converting voice to text', error);
+        ctx.reply('Whoops! There was an error while converting voice to text.');
+        return;
+      }
+    } else {
+      ctx.reply('Please send a text message or a voice message.');
       return;
     }
-
     logger.debug('Input: ', userMessage);
 
     await ctx.sendChatAction('typing');
